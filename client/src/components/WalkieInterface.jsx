@@ -1,5 +1,7 @@
-import { BatteryFull, LogOut, Mic, MicOff, RadioTower, Users } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { BatteryFull, Copy, LogOut, Mic, MicOff, RadioTower, Users } from 'lucide-react';
 import { Waveform } from './Waveform';
+import { shareInviteLink } from '../lib/invite';
 
 const statusStyles = {
   OFFLINE: 'text-white/50 border-white/10 bg-white/5',
@@ -52,8 +54,30 @@ function getStatusTone(status) {
 }
 
 export function WalkieInterface({ radio }) {
+  const [inviteStatus, setInviteStatus] = useState('idle');
+  const inviteTimerRef = useRef(null);
   const statusClass = statusStyles[radio.status] || statusStyles.OFFLINE;
   const waveformActive = radio.isTransmitting || radio.status === 'RECEIVING' || radio.status === 'CHANNEL BUSY';
+  const isOnlyOperator = radio.joined && radio.onlineCount <= 1;
+
+  useEffect(() => () => {
+    if (inviteTimerRef.current) window.clearTimeout(inviteTimerRef.current);
+  }, []);
+
+  async function copyInviteLink() {
+    try {
+      const result = await shareInviteLink(radio.channelNumber);
+      setInviteStatus(result.method === 'cancelled' ? 'idle' : 'copied');
+    } catch {
+      setInviteStatus('error');
+    }
+
+    if (inviteTimerRef.current) window.clearTimeout(inviteTimerRef.current);
+    inviteTimerRef.current = window.setTimeout(() => {
+      setInviteStatus('idle');
+      inviteTimerRef.current = null;
+    }, 1800);
+  }
 
   function bindPttHandlers() {
     return {
@@ -91,7 +115,7 @@ export function WalkieInterface({ radio }) {
               <RadioTower size={18} />
               <span className="font-mono text-sm uppercase tracking-[0.18em]">Digital Internet PTT</span>
             </div>
-            <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.24em] text-white/35">Internet Room — Not RF</p>
+            <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.24em] text-white/35">INTERNET ROOM — NOT RF</p>
           </div>
           <div className={`rounded-full border px-3 py-1.5 font-mono text-xs uppercase tracking-[0.16em] ${statusClass}`}>{radio.status}</div>
         </header>
@@ -99,6 +123,9 @@ export function WalkieInterface({ radio }) {
         <section className="lcd-glass relative overflow-hidden rounded-[1.7rem] border border-tactical-green/25 bg-[#8dff6a]/10 p-4 shadow-signal">
           <div className="absolute inset-0 animate-scan bg-gradient-to-b from-transparent via-white/8 to-transparent" />
           <div className="absolute inset-x-0 top-1/2 h-px bg-tactical-green/25" />
+          <div className="relative mb-2 inline-flex rounded-full border border-tactical-green/20 bg-black/25 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-tactical-green/70">
+            Internet room code — not RF
+          </div>
           <div className="relative flex items-end justify-between gap-3">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-tactical-green/60">CHANNEL</p>
@@ -149,6 +176,22 @@ export function WalkieInterface({ radio }) {
             );
           })}
         </section>
+
+        {isOnlyOperator ? (
+          <section className="mt-3 rounded-2xl border border-tactical-green/20 bg-tactical-green/10 p-3 text-center">
+            <p className="font-mono text-xs uppercase leading-relaxed tracking-[0.14em] text-tactical-green/75">
+              You are the only operator on CH {radio.channelNumber}. Invite a friend to start talking.
+            </p>
+            <button
+              type="button"
+              onClick={copyInviteLink}
+              className="mt-3 touch-manipulation rounded-xl border border-white/10 bg-black/35 px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.18em] text-white/75 transition active:scale-[0.98]"
+            >
+              <Copy className="mr-2 inline" size={15} />
+              {inviteStatus === 'copied' ? 'Invite Link Copied' : inviteStatus === 'error' ? 'Copy Failed' : 'Invite Friend'}
+            </button>
+          </section>
+        ) : null}
 
         <div className="flex-1" />
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Delete, Dice5, Radio, Shield, SignalHigh, Users } from 'lucide-react';
+import { Copy, Delete, Dice5, Radio, Shield, SignalHigh, Users } from 'lucide-react';
 import { createRandomChannel, getChannelCategory } from '../lib/channels';
+import { shareInviteLink } from '../lib/invite';
 
 const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 const IGNORED_HELPER_MS = 1600;
@@ -17,12 +18,15 @@ export function EntryScreen({
   micStatus,
 }) {
   const [ignoredInvalidInput, setIgnoredInvalidInput] = useState(false);
+  const [inviteStatus, setInviteStatus] = useState('idle');
   const ignoredTimerRef = useRef(null);
+  const inviteTimerRef = useRef(null);
   const channelCategory = getChannelCategory(channelInput);
   const isRequestingMic = micStatus === 'requesting';
 
   useEffect(() => () => {
     if (ignoredTimerRef.current) window.clearTimeout(ignoredTimerRef.current);
+    if (inviteTimerRef.current) window.clearTimeout(inviteTimerRef.current);
   }, []);
 
   function showIgnoredHelper() {
@@ -47,6 +51,23 @@ export function EntryScreen({
   function randomizeChannel() {
     if (isTuning) return;
     setChannelInput(createRandomChannel());
+  }
+
+  async function copyInviteLink() {
+    if (!channelValidation.valid || isTuning) return;
+
+    try {
+      const result = await shareInviteLink(channelInput);
+      setInviteStatus(result.method === 'cancelled' ? 'idle' : 'copied');
+    } catch {
+      setInviteStatus('error');
+    }
+
+    if (inviteTimerRef.current) window.clearTimeout(inviteTimerRef.current);
+    inviteTimerRef.current = window.setTimeout(() => {
+      setInviteStatus('idle');
+      inviteTimerRef.current = null;
+    }, 1800);
   }
 
   function handleChannelChange(event) {
@@ -93,6 +114,9 @@ export function EntryScreen({
               <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.24em] text-white/45">
                 <span>CHANNEL</span>
                 <span>{channelCategory}</span>
+              </div>
+              <div className="mb-2 inline-flex rounded-full border border-tactical-green/20 bg-tactical-green/10 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-tactical-green/70">
+                Internet room code — not RF
               </div>
 
               <div className={`lcd-glass relative overflow-hidden rounded-2xl border px-4 py-4 shadow-signal ${channelValidation.valid ? 'border-tactical-green/35 bg-[#9dff75]/10' : 'border-tactical-amber/35 bg-tactical-amber/10'}`}>
@@ -162,9 +186,36 @@ export function EntryScreen({
                   <Dice5 className="mr-2 inline" size={18} /> Random CH
                 </button>
               </div>
+
+              <button
+                type="button"
+                onClick={copyInviteLink}
+                disabled={!channelValidation.valid || isTuning}
+                className="mt-3 touch-manipulation w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.18em] text-white/70 transition active:scale-[0.98] disabled:opacity-35"
+              >
+                <Copy className="mr-2 inline" size={15} />
+                {inviteStatus === 'copied' ? 'Invite Link Copied' : inviteStatus === 'error' ? 'Copy Failed' : 'Copy Invite Link'}
+              </button>
             </section>
 
             {error ? <p className="rounded-xl border border-tactical-red/30 bg-tactical-red/10 p-3 text-sm text-tactical-red">{error}</p> : null}
+
+            <section className="rounded-2xl border border-tactical-amber/25 bg-gradient-to-b from-tactical-amber/10 to-black/35 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.06)]">
+              <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[0.2em] text-tactical-amber">
+                <Shield size={16} />
+                Microphone Permission
+              </div>
+              <p className="mt-2 text-sm leading-relaxed text-white/68">
+                Your browser will ask for microphone access when you join a channel. Your mic stays muted until you hold Push-to-Talk.
+              </p>
+              <ul className="mt-3 space-y-1.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.12em] text-white/50">
+                <li>• Mic access is required for live voice.</li>
+                <li>• You are not transmitting while in LISTENING mode.</li>
+                <li>• Hold Push-to-Talk to speak.</li>
+                <li>• Release to return to listening.</li>
+                <li>• This is an internet room, not real radio frequency.</li>
+              </ul>
+            </section>
 
             <button
               type="submit"
