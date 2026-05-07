@@ -1,0 +1,185 @@
+import { useEffect, useRef, useState } from 'react';
+import { Delete, Dice5, Radio, Shield, SignalHigh, Users } from 'lucide-react';
+import { createRandomChannel, getChannelCategory } from '../lib/channels';
+
+const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+const IGNORED_HELPER_MS = 1600;
+
+export function EntryScreen({
+  username,
+  setUsername,
+  channelInput,
+  setChannelInput,
+  onJoin,
+  error,
+  channelValidation,
+  isTuning,
+  micStatus,
+}) {
+  const [ignoredInvalidInput, setIgnoredInvalidInput] = useState(false);
+  const ignoredTimerRef = useRef(null);
+  const channelCategory = getChannelCategory(channelInput);
+  const isRequestingMic = micStatus === 'requesting';
+
+  useEffect(() => () => {
+    if (ignoredTimerRef.current) window.clearTimeout(ignoredTimerRef.current);
+  }, []);
+
+  function showIgnoredHelper() {
+    if (ignoredTimerRef.current) window.clearTimeout(ignoredTimerRef.current);
+    setIgnoredInvalidInput(true);
+    ignoredTimerRef.current = window.setTimeout(() => {
+      setIgnoredInvalidInput(false);
+      ignoredTimerRef.current = null;
+    }, IGNORED_HELPER_MS);
+  }
+
+  function appendDigit(digit) {
+    if (channelInput.length >= 6 || isTuning) return;
+    setChannelInput(`${channelInput}${digit}`);
+  }
+
+  function deleteDigit() {
+    if (isTuning) return;
+    setChannelInput(channelInput.slice(0, -1));
+  }
+
+  function randomizeChannel() {
+    if (isTuning) return;
+    setChannelInput(createRandomChannel());
+  }
+
+  function handleChannelChange(event) {
+    if (/\D/.test(event.target.value)) showIgnoredHelper();
+    setChannelInput(event.target.value);
+  }
+
+  return (
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-5 font-display text-white">
+      <div className="noise-overlay absolute inset-0" />
+      <div className="absolute -top-28 h-72 w-72 rounded-full bg-tactical-green/10 blur-3xl" />
+      <section className="relative w-full max-w-md rounded-[2rem] border border-tactical-edge bg-tactical-panel/90 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl">
+        <div className="rounded-[1.45rem] border border-white/10 bg-gradient-to-b from-white/8 to-black/40 p-4 shadow-insetPanel">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-[0.35em] text-tactical-green/70">Digital Internet Radio</p>
+              <h1 className="mt-2 text-4xl font-bold uppercase leading-none tracking-tight">Walkie Talking</h1>
+            </div>
+            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-tactical-green/30 bg-tactical-green/10 shadow-signal">
+              <Radio className="text-tactical-green" size={28} />
+            </div>
+          </div>
+
+          <div className="mb-4 grid grid-cols-3 gap-2 text-center text-[10px] uppercase tracking-[0.18em] text-white/55">
+            <div className="rounded-xl border border-white/10 bg-black/30 p-3"><SignalHigh className="mx-auto mb-1 text-tactical-green" size={18} />Internet</div>
+            <div className="rounded-xl border border-white/10 bg-black/30 p-3"><Users className="mx-auto mb-1 text-tactical-green" size={18} />Rooms</div>
+            <div className="rounded-xl border border-white/10 bg-black/30 p-3"><Shield className="mx-auto mb-1 text-tactical-green" size={18} />PTT Lock</div>
+          </div>
+
+          <form className="space-y-4" onSubmit={onJoin}>
+            <label className="block">
+              <span className="mb-2 block font-mono text-xs uppercase tracking-[0.24em] text-white/50">Operator name</span>
+              <input
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="Soren"
+                maxLength={24}
+                disabled={isTuning}
+                className="w-full rounded-2xl border border-white/10 bg-black/50 px-4 py-4 font-mono text-lg outline-none ring-tactical-green/40 transition focus:border-tactical-green/60 focus:ring-4 disabled:opacity-60"
+              />
+            </label>
+
+            <section className="rounded-[1.4rem] border border-tactical-green/20 bg-black/45 p-3">
+              <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.24em] text-white/45">
+                <span>CHANNEL</span>
+                <span>{channelCategory}</span>
+              </div>
+
+              <div className={`lcd-glass relative overflow-hidden rounded-2xl border px-4 py-4 shadow-signal ${channelValidation.valid ? 'border-tactical-green/35 bg-[#9dff75]/10' : 'border-tactical-amber/35 bg-tactical-amber/10'}`}>
+                <div className="absolute inset-0 animate-scan bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+                <div className="absolute inset-x-0 top-1/2 h-px bg-tactical-green/20" />
+                <label className="relative block">
+                  <span className="sr-only">Channel number</span>
+                  <div className="flex items-end justify-between gap-3">
+                    <span className="font-mono text-xl font-bold uppercase tracking-[0.2em] text-tactical-green/70">CH</span>
+                    <input
+                      value={channelInput}
+                      onChange={handleChannelChange}
+                      onBeforeInput={(event) => {
+                        if (event.data && /\D/.test(event.data)) {
+                          event.preventDefault();
+                          showIgnoredHelper();
+                        }
+                      }}
+                      onPaste={(event) => {
+                        const pastedText = event.clipboardData.getData('text');
+                        event.preventDefault();
+                        if (/\D/.test(pastedText)) showIgnoredHelper();
+                        setChannelInput(pastedText);
+                      }}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="007"
+                      disabled={isTuning}
+                      className="w-full bg-transparent text-right font-mono text-6xl font-bold leading-none tracking-[0.08em] text-tactical-green outline-none placeholder:text-tactical-green/20 disabled:opacity-80"
+                    />
+                    <span className="mb-1 h-12 w-1 animate-blink rounded-full bg-tactical-green shadow-signal" />
+                  </div>
+                </label>
+                {isTuning ? (
+                  <div className="relative mt-3 overflow-hidden rounded-full border border-tactical-green/30 bg-black/50 p-1">
+                    <div className="h-2 animate-tune rounded-full bg-tactical-green shadow-signal" />
+                  </div>
+                ) : null}
+              </div>
+
+              <p className={`mt-2 min-h-5 font-mono text-xs uppercase tracking-[0.12em] ${channelValidation.valid ? 'text-tactical-green/75' : 'text-tactical-amber'}`}>
+                {isRequestingMic
+                  ? 'Requesting microphone access...'
+                  : ignoredInvalidInput
+                    ? 'Numbers only — letters and symbols are ignored.'
+                    : isTuning
+                      ? `Tuning virtual room ${channelInput}...`
+                      : channelValidation.message}
+              </p>
+
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {keypadDigits.map((digit) => (
+                  <button
+                    type="button"
+                    key={digit}
+                    onClick={() => appendDigit(digit)}
+                    disabled={isTuning || channelInput.length >= 6}
+                    className="touch-manipulation rounded-xl border border-white/10 bg-[#101712] py-3 font-mono text-2xl font-bold text-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,.08)] transition active:scale-95 disabled:opacity-35"
+                  >
+                    {digit}
+                  </button>
+                ))}
+                <button type="button" onClick={deleteDigit} disabled={isTuning || !channelInput} className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 py-3 font-mono font-bold text-tactical-amber transition active:scale-95 disabled:opacity-35">
+                  <Delete className="mx-auto" size={22} />
+                </button>
+                <button type="button" onClick={randomizeChannel} disabled={isTuning} className="touch-manipulation col-span-2 rounded-xl border border-tactical-green/25 bg-tactical-green/10 py-3 font-mono text-sm font-bold uppercase tracking-[0.16em] text-tactical-green transition active:scale-95 disabled:opacity-35">
+                  <Dice5 className="mr-2 inline" size={18} /> Random CH
+                </button>
+              </div>
+            </section>
+
+            {error ? <p className="rounded-xl border border-tactical-red/30 bg-tactical-red/10 p-3 text-sm text-tactical-red">{error}</p> : null}
+
+            <button
+              type="submit"
+              disabled={!channelValidation.valid || isTuning}
+              className="touch-manipulation w-full rounded-2xl border border-tactical-green/50 bg-tactical-green px-5 py-4 text-lg font-bold uppercase tracking-[0.22em] text-black shadow-signal transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none"
+            >
+              {isRequestingMic ? 'Requesting Mic...' : isTuning ? 'Tuning...' : 'Join Channel'}
+            </button>
+          </form>
+
+          <p className="mt-4 text-center text-xs leading-relaxed text-white/45">
+            Virtual channel ID only — not RF. Users on the exact same string, like 007, share one encrypted internet room.
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}
