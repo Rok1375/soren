@@ -75,23 +75,44 @@ function validateChannel(channel) {
   return { ok: true, value };
 }
 
+function createChannelState() {
+  return {
+    users: new Map(),
+    hostSocketId: null,
+    locked: false,
+    createdAt: Date.now(),
+    transmittingSocketId: null,
+  };
+}
+
 function getChannel(channelNumber) {
-  const key = channelNumber;
-  if (!channels.has(key)) {
-    channels.set(key, {
-      users: new Map(),
-      transmittingSocketId: null,
-    });
+  return channels.get(channelNumber);
+}
+
+function getOrCreateChannel(channelNumber) {
+  if (!channels.has(channelNumber)) {
+    channels.set(channelNumber, createChannelState());
   }
-  return channels.get(key);
+  return channels.get(channelNumber);
+}
+
+function getNextHostSocketId(channel) {
+  return [...channel.users.values()]
+    .sort((a, b) => a.connectedAt - b.connectedAt)
+    .at(0)?.socketId || null;
 }
 
 function channelPayload(channelNumber) {
   const channel = getChannel(channelNumber);
+  if (!channel) return null;
+
   return {
     channelNumber,
     onlineCount: channel.users.size,
     users: [...channel.users.values()],
+    hostSocketId: channel.hostSocketId,
+    locked: channel.locked,
+    createdAt: channel.createdAt,
     transmittingSocketId: channel.transmittingSocketId,
     transmittingUser: channel.transmittingSocketId
       ? channel.users.get(channel.transmittingSocketId) || null
@@ -100,7 +121,8 @@ function channelPayload(channelNumber) {
 }
 
 function emitChannelState(channelNumber) {
-  io.to(channelNumber).emit('channel:state', channelPayload(channelNumber));
+  const payload = channelPayload(channelNumber);
+  if (payload) io.to(channelNumber).emit('channel:state', payload);
 }
 
 function leaveCurrentChannel(socket) {
@@ -108,7 +130,9 @@ function leaveCurrentChannel(socket) {
   if (!channelNumber) return;
 
   const channel = getChannel(channelNumber);
+  if (!channel) return;
   const wasTransmitting = channel.transmittingSocketId === socket.id;
+  const wasHost = channel.hostSocketId === socket.id;
 
   channel.users.delete(socket.id);
   socket.leave(channelNumber);
@@ -123,6 +147,7 @@ function leaveCurrentChannel(socket) {
   if (channel.users.size === 0) {
     channels.delete(channelNumber);
   } else {
+    if (wasHost) channel.hostSocketId = getNextHostSocketId(channel);
     emitChannelState(channelNumber);
   }
 
@@ -143,28 +168,72 @@ io.on('connection', (socket) => {
     }
 
     const safeChannel = channelValidation.value;
+    const existingChannel = getChannel(safeChannel);
+    const alreadyInsideChannel = socket.data.channelNumber === safeChannel
+      && existingChannel?.users.has(socket.id);
+
+    if (existingChannel?.locked && !alreadyInsideChannel) {
+      ack?.({ ok: false, error: 'CHANNEL_LOCKED' });
+      return;
+    }
+
+    if (alreadyInsideChannel) {
+      const existingUser = existingChannel.users.get(socket.id);
+      existingChannel.users.set(socket.id, {
+        ...existingUser,
+        username: safeUsername,
+      });
+      socket.data.username = safeUsername;
+      const existingPeers = [...existingChannel.users.keys()].filter((id) => id !== socket.id);
+      const state = channelPayload(safeChannel);
+      ack?.({
+        ok: true,
+        socketId: socket.id,
+        channel: safeChannel,
+        channelNumber: safeChannel,
+        users: existingChannel.users.size,
+        peers: existingPeers,
+        isHost: existingChannel.hostSocketId === socket.id,
+        hostSocketId: existingChannel.hostSocketId,
+        locked: existingChannel.locked,
+        state,
+      });
+      emitChannelState(safeChannel);
+      return;
+    }
 
     leaveCurrentChannel(socket);
+
+    const channel = getOrCreateChannel(safeChannel);
+    const connectedAt = Date.now();
 
     socket.data.username = safeUsername;
     socket.data.channelNumber = safeChannel;
     socket.join(safeChannel);
 
-    const channel = getChannel(safeChannel);
     channel.users.set(socket.id, {
       socketId: socket.id,
       username: safeUsername,
-      joinedAt: Date.now(),
+      joinedAt: connectedAt,
+      connectedAt,
     });
 
+    if (!channel.hostSocketId) channel.hostSocketId = socket.id;
+
     const existingPeers = [...channel.users.keys()].filter((id) => id !== socket.id);
+    const state = channelPayload(safeChannel);
 
     ack?.({
       ok: true,
       socketId: socket.id,
+      channel: safeChannel,
       channelNumber: safeChannel,
+      users: channel.users.size,
       peers: existingPeers,
-      state: channelPayload(safeChannel),
+      isHost: channel.hostSocketId === socket.id,
+      hostSocketId: channel.hostSocketId,
+      locked: channel.locked,
+      state,
     });
 
     socket.to(safeChannel).emit('peer:joined', {
@@ -177,6 +246,30 @@ io.on('connection', (socket) => {
   socket.on('channel:leave', (_payload, ack) => {
     leaveCurrentChannel(socket);
     ack?.({ ok: true });
+  });
+
+  socket.on('channel:set-lock', ({ locked }, ack) => {
+    const channelNumber = socket.data.channelNumber;
+    if (!channelNumber) {
+      ack?.({ ok: false, error: 'Join a channel first.' });
+      return;
+    }
+
+    const channel = getChannel(channelNumber);
+    if (!channel) {
+      ack?.({ ok: false, error: 'Channel no longer exists.' });
+      return;
+    }
+
+    if (channel.hostSocketId !== socket.id) {
+      ack?.({ ok: false, error: 'NOT_HOST' });
+      return;
+    }
+
+    channel.locked = Boolean(locked);
+    const state = channelPayload(channelNumber);
+    ack?.({ ok: true, locked: channel.locked, state });
+    emitChannelState(channelNumber);
   });
 
   socket.on('signal:offer', ({ to, description }) => {

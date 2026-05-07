@@ -53,6 +53,11 @@ export function useWalkieTalkie() {
   const [attemptedWhileBusy, setAttemptedWhileBusy] = useState(false);
   const [micStatus, setMicStatus] = useState('idle');
   const [peerStatuses, setPeerStatuses] = useState({});
+  const [isHost, setIsHost] = useState(false);
+  const [hostSocketId, setHostSocketId] = useState(null);
+  const [channelLocked, setChannelLocked] = useState(false);
+  const [channelLockError, setChannelLockError] = useState('');
+  const [channelState, setChannelState] = useState(null);
   const [error, setError] = useState('');
 
   const socketRef = useRef(null);
@@ -322,8 +327,13 @@ export function useWalkieTalkie() {
     });
 
     socket.on('channel:state', (state) => {
+      setChannelState(state);
       setOnlineCount(state.onlineCount);
       setUsers(state.users || []);
+      setHostSocketId(state.hostSocketId || null);
+      setIsHost(state.hostSocketId === socket.id);
+      setChannelLocked(Boolean(state.locked));
+      setChannelLockError('');
       setTransmittingSocketId(state.transmittingSocketId);
       if (!state.transmittingSocketId) clearBusyAttempt();
     });
@@ -415,6 +425,11 @@ export function useWalkieTalkie() {
       setOnlineCount(0);
       setTransmittingSocketId(null);
       setPeerStatuses({});
+      setIsHost(false);
+      setHostSocketId(null);
+      setChannelLocked(false);
+      setChannelLockError('');
+      setChannelState(null);
       clearBusyAttempt();
       setError('Disconnected from the signaling server.');
     });
@@ -445,13 +460,21 @@ export function useWalkieTalkie() {
       });
 
       if (!response?.ok) {
+        if (response?.error === 'CHANNEL_LOCKED') {
+          throw new Error('This channel is locked by the host.');
+        }
         throw new Error(response?.error || 'Could not join channel.');
       }
 
       setJoined(true);
       setChannelNumber(response.channelNumber);
+      setChannelState(response.state || null);
       setOnlineCount(response.state.onlineCount);
       setUsers(response.state.users || []);
+      setHostSocketId(response.state.hostSocketId || response.hostSocketId || null);
+      setIsHost(Boolean(response.isHost));
+      setChannelLocked(Boolean(response.state.locked ?? response.locked));
+      setChannelLockError('');
       setTransmittingSocketId(response.state.transmittingSocketId);
 
       webrtcDebug('channel joined', {
@@ -485,6 +508,11 @@ export function useWalkieTalkie() {
     setChannelNumber('');
     setOnlineCount(0);
     setUsers([]);
+    setHostSocketId(null);
+    setIsHost(false);
+    setChannelLocked(false);
+    setChannelLockError('');
+    setChannelState(null);
     setTransmittingSocketId(null);
     setIsHolding(false);
     clearBusyAttempt();
@@ -536,6 +564,31 @@ export function useWalkieTalkie() {
     });
   }, [isTransmitting, setMicEnabled]);
 
+  const setChannelLock = useCallback(async (locked) => {
+    setChannelLockError('');
+    const response = await new Promise((resolve) => {
+      socketRef.current?.emit('channel:set-lock', { locked }, resolve);
+    });
+
+    if (!response?.ok) {
+      const message = response?.error === 'NOT_HOST'
+        ? 'Only the host can lock this channel.'
+        : response?.error || 'Could not update channel lock.';
+      setChannelLockError(message);
+      return false;
+    }
+
+    if (response.state) {
+      setChannelState(response.state);
+      setHostSocketId(response.state.hostSocketId || null);
+      setIsHost(response.state.hostSocketId === socketRef.current?.id);
+      setChannelLocked(Boolean(response.state.locked));
+    } else {
+      setChannelLocked(Boolean(response.locked));
+    }
+    return true;
+  }, []);
+
   return {
     socketId,
     joined,
@@ -545,6 +598,11 @@ export function useWalkieTalkie() {
     muted,
     micStatus,
     peerStatuses,
+    isHost,
+    hostSocketId,
+    channelLocked,
+    channelLockError,
+    channelState,
     status,
     isBusy,
     isHolding,
@@ -556,5 +614,6 @@ export function useWalkieTalkie() {
     startTransmitting,
     stopTransmitting,
     toggleMute,
+    setChannelLock,
   };
 }

@@ -1,7 +1,5 @@
 export function createInviteLink(channelNumber) {
-  const url = new URL(window.location.href);
-  url.searchParams.set('channel', channelNumber);
-  return url.toString();
+  return `${window.location.origin}?channel=${encodeURIComponent(String(channelNumber))}`;
 }
 
 export function createInviteText(channelNumber) {
@@ -26,6 +24,6 @@ export async function shareInviteLink(channelNumber) {
     }
   }
 
-  await navigator.clipboard.writeText(`${text} ${url}`);
+  await navigator.clipboard.writeText(url);
   return { method: 'clipboard', url };
 }

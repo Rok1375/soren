@@ -3,6 +3,7 @@ import { EntryScreen } from './components/EntryScreen';
 import { WalkieInterface } from './components/WalkieInterface';
 import { useWalkieTalkie } from './hooks/useWalkieTalkie';
 import { getChannelValidation, sanitizeChannelInput } from './lib/channels';
+import { clearRecentChannels, getRecentChannels, saveRecentChannel } from './lib/recentChannels';
 
 const TUNING_DURATION_MS = 720;
 const DEFAULT_CHANNEL = '272';
@@ -22,6 +23,7 @@ function getInitialChannelInput() {
 export default function App() {
   const [username, setUsername] = useState('');
   const [channelInput, setChannelInput] = useState(getInitialChannelInput);
+  const [recentChannels, setRecentChannels] = useState(getRecentChannels);
   const [isTuning, setIsTuning] = useState(false);
   const radio = useWalkieTalkie();
 
@@ -29,6 +31,16 @@ export default function App() {
 
   function updateChannelInput(value) {
     setChannelInput(sanitizeChannelInput(value));
+  }
+
+  function handleRecentChannelSelect(channel) {
+    if (isTuning) return;
+    setChannelInput(channel);
+  }
+
+  function handleClearRecentChannels() {
+    if (isTuning) return;
+    setRecentChannels(clearRecentChannels());
   }
 
   async function handleJoin(event) {
@@ -44,6 +56,7 @@ export default function App() {
         }),
         wait(TUNING_DURATION_MS),
       ]);
+      setRecentChannels(saveRecentChannel(channelInput));
     } finally {
       setIsTuning(false);
     }
@@ -61,6 +74,9 @@ export default function App() {
         channelValidation={channelValidation}
         isTuning={isTuning}
         micStatus={radio.micStatus}
+        recentChannels={recentChannels}
+        onRecentChannelSelect={handleRecentChannelSelect}
+        onClearRecentChannels={handleClearRecentChannels}
       />
     );
   }

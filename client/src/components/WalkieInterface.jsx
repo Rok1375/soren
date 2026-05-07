@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BatteryFull, Copy, LogOut, Mic, MicOff, RadioTower, Users } from 'lucide-react';
+import { BatteryFull, Copy, Lock, LogOut, Mic, MicOff, RadioTower, Unlock, Users } from 'lucide-react';
 import { Waveform } from './Waveform';
 import { shareInviteLink } from '../lib/invite';
 
@@ -114,6 +114,9 @@ export function WalkieInterface({ radio }) {
             <div className="mt-1 flex items-center gap-2 text-tactical-green">
               <RadioTower size={18} />
               <span className="font-mono text-sm uppercase tracking-[0.18em]">Digital Internet PTT</span>
+              {radio.isHost ? (
+                <span className="rounded-full border border-tactical-amber/30 bg-tactical-amber/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber">HOST</span>
+              ) : null}
             </div>
             <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.24em] text-white/35">INTERNET ROOM — NOT RF</p>
           </div>
@@ -123,8 +126,18 @@ export function WalkieInterface({ radio }) {
         <section className="lcd-glass relative overflow-hidden rounded-[1.7rem] border border-tactical-green/25 bg-[#8dff6a]/10 p-4 shadow-signal">
           <div className="absolute inset-0 animate-scan bg-gradient-to-b from-transparent via-white/8 to-transparent" />
           <div className="absolute inset-x-0 top-1/2 h-px bg-tactical-green/25" />
-          <div className="relative mb-2 inline-flex rounded-full border border-tactical-green/20 bg-black/25 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-tactical-green/70">
-            Internet room code — not RF
+          <div className="relative mb-2 flex items-center justify-between gap-2">
+            <div className="inline-flex rounded-full border border-tactical-green/20 bg-black/25 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-tactical-green/70">
+              Internet room code — not RF
+            </div>
+            <button
+              type="button"
+              onClick={copyInviteLink}
+              className="touch-manipulation rounded-full border border-white/10 bg-black/35 px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-white/65 transition active:scale-[0.98]"
+            >
+              <Copy className="mr-1 inline" size={12} />
+              {inviteStatus === 'copied' ? 'Copied invite link' : inviteStatus === 'error' ? 'Copy failed' : 'Share Channel'}
+            </button>
           </div>
           <div className="relative flex items-end justify-between gap-3">
             <div>
@@ -144,6 +157,33 @@ export function WalkieInterface({ radio }) {
           <MeterCard label="STATUS" tone={getStatusTone(radio.status)}>{radio.status}</MeterCard>
           <MeterCard label="USERS"><Users className="mr-1 inline" size={14} />{radio.onlineCount}</MeterCard>
           <MeterCard label="BATTERY"><BatteryFull className="mr-1 inline" size={14} />98%</MeterCard>
+        </section>
+
+        <section className={`mt-3 rounded-2xl border p-3 ${radio.channelLocked ? 'border-tactical-amber/25 bg-tactical-amber/10' : 'border-tactical-green/20 bg-tactical-green/10'}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/40">Channel Control</p>
+              <p className={`mt-1 font-mono text-xs font-bold uppercase tracking-[0.16em] ${radio.channelLocked ? 'text-tactical-amber' : 'text-tactical-green'}`}>
+                {radio.channelLocked ? 'CHANNEL LOCKED' : 'CHANNEL OPEN'}
+              </p>
+            </div>
+            {radio.isHost ? (
+              <button
+                type="button"
+                onClick={() => radio.setChannelLock(!radio.channelLocked)}
+                className="touch-manipulation rounded-xl border border-white/10 bg-black/35 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white/75 transition active:scale-[0.98]"
+              >
+                {radio.channelLocked ? <Unlock className="mr-1 inline" size={13} /> : <Lock className="mr-1 inline" size={13} />}
+                {radio.channelLocked ? 'Unlock Channel' : 'Lock Channel'}
+              </button>
+            ) : null}
+          </div>
+          <p className="mt-2 font-mono text-[9px] uppercase leading-relaxed tracking-[0.12em] text-white/40">
+            Recommended MVP group size: up to 8 users for best peer-to-peer audio performance.
+          </p>
+          {radio.channelLockError ? (
+            <p className="mt-2 rounded-xl border border-tactical-red/25 bg-tactical-red/10 px-3 py-2 text-xs text-tactical-red">{radio.channelLockError}</p>
+          ) : null}
         </section>
 
         <section className="mt-4 space-y-3">
@@ -168,6 +208,9 @@ export function WalkieInterface({ radio }) {
                 <div className="flex items-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${isMe ? 'bg-tactical-green shadow-signal' : 'bg-white/30'}`} />
                   <span className="truncate font-semibold">{user.username}</span>
+                  {user.socketId === radio.hostSocketId ? (
+                    <span className="rounded-full border border-tactical-amber/30 bg-tactical-amber/10 px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-tactical-amber">HOST</span>
+                  ) : null}
                 </div>
                 <div className={`mt-2 rounded-full border px-2 py-1 text-center font-mono text-[9px] uppercase tracking-[0.12em] ${peerClass}`}>
                   {peerStatus}
@@ -188,7 +231,7 @@ export function WalkieInterface({ radio }) {
               className="mt-3 touch-manipulation rounded-xl border border-white/10 bg-black/35 px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.18em] text-white/75 transition active:scale-[0.98]"
             >
               <Copy className="mr-2 inline" size={15} />
-              {inviteStatus === 'copied' ? 'Invite Link Copied' : inviteStatus === 'error' ? 'Copy Failed' : 'Invite Friend'}
+              {inviteStatus === 'copied' ? 'Copied invite link' : inviteStatus === 'error' ? 'Copy Failed' : 'Share Channel'}
             </button>
           </section>
         ) : null}

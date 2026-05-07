@@ -16,6 +16,9 @@ export function EntryScreen({
   channelValidation,
   isTuning,
   micStatus,
+  recentChannels,
+  onRecentChannelSelect,
+  onClearRecentChannels,
 }) {
   const [ignoredInvalidInput, setIgnoredInvalidInput] = useState(false);
   const [inviteStatus, setInviteStatus] = useState('idle');
@@ -194,9 +197,38 @@ export function EntryScreen({
                 className="mt-3 touch-manipulation w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.18em] text-white/70 transition active:scale-[0.98] disabled:opacity-35"
               >
                 <Copy className="mr-2 inline" size={15} />
-                {inviteStatus === 'copied' ? 'Invite Link Copied' : inviteStatus === 'error' ? 'Copy Failed' : 'Copy Invite Link'}
+                {inviteStatus === 'copied' ? 'Copied invite link' : inviteStatus === 'error' ? 'Copy Failed' : 'Copy Invite Link'}
               </button>
             </section>
+
+            {recentChannels?.length ? (
+              <section className="rounded-2xl border border-white/10 bg-black/30 p-3">
+                <div className="mb-3 flex items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.18em]">
+                  <span className="text-white/45">Recent Channels</span>
+                  <button
+                    type="button"
+                    onClick={onClearRecentChannels}
+                    disabled={isTuning}
+                    className="touch-manipulation rounded-full border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-1 font-bold text-tactical-amber/80 transition active:scale-[0.98] disabled:opacity-35"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {recentChannels.map((channel) => (
+                    <button
+                      type="button"
+                      key={channel}
+                      onClick={() => onRecentChannelSelect(channel)}
+                      disabled={isTuning}
+                      className="touch-manipulation rounded-full border border-tactical-green/20 bg-tactical-green/10 px-3 py-2 font-mono text-xs font-bold uppercase tracking-[0.14em] text-tactical-green transition active:scale-[0.98] disabled:opacity-35"
+                    >
+                      CH {channel}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             {error ? <p className="rounded-xl border border-tactical-red/30 bg-tactical-red/10 p-3 text-sm text-tactical-red">{error}</p> : null}
 

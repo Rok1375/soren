@@ -172,6 +172,20 @@ Do not paste the frontend URL into `VITE_SIGNALING_URL`. Do not paste the backen
 - If a user tries to transmit over someone else, they briefly see `CHANNEL BUSY`.
 - Start/end beeps and subtle generated static make the interaction feel like a real radio.
 
+## Host, lock, and group-size rules
+
+- Host ownership is temporary per live channel session only. There are no accounts, login, or saved host permissions.
+- The first user to join an empty channel becomes the channel host.
+- The host is marked with a `HOST` badge in the room UI.
+- Only the host can lock or unlock the channel.
+- A locked channel blocks new joins and returns `CHANNEL_LOCKED` to the joining client.
+- Existing users stay inside and can keep using Push-to-Talk after the host locks the channel.
+- If the host leaves or disconnects, host ownership transfers to the next oldest connected user in that channel.
+- If everyone leaves, the in-memory channel state is deleted.
+- There is no artificial hard user limit in this MVP; the app does not block users just because the room is large.
+- Recommended MVP group size: up to 8 users for best audio performance because the current architecture uses peer-to-peer WebRTC.
+- Larger future rooms may require an SFU/media-server architecture instead of every user connecting directly to every other user.
+
 ## WebRTC network note
 
 WebRTC microphone access requires HTTPS in production. The Vercel frontend URL is HTTPS, so phones can request microphone access through the deployed app link.
