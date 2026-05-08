@@ -19,7 +19,7 @@ export function createRandomChannel() {
 }
 
 export function getChannelCategory(channel) {
-  if (/^\d{3}$/.test(channel) && Number(channel) >= 100) return 'PUBLIC-STYLE';
-  if (/^\d{6}$/.test(channel)) return 'PRIVATE-STYLE';
+  if (/^\d{3}$/.test(channel) && Number(channel) >= 100) return 'CODE-BASED';
+  if (/^\d{6}$/.test(channel)) return 'INVITE-LINK';
   return 'CUSTOM';
 }

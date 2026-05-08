@@ -136,7 +136,7 @@ export function WalkieInterface({ radio }) {
               className="touch-manipulation rounded-full border border-white/10 bg-black/35 px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-white/65 transition active:scale-[0.98]"
             >
               <Copy className="mr-1 inline" size={12} />
-              {inviteStatus === 'copied' ? 'Copied invite link' : inviteStatus === 'error' ? 'Copy failed' : 'Share Channel'}
+              {inviteStatus === 'copied' ? 'Invite copied — send it to a friend to start talking.' : inviteStatus === 'error' ? 'Copy failed' : 'Share Channel'}
             </button>
           </div>
           <div className="relative flex items-end justify-between gap-3">
@@ -179,6 +179,9 @@ export function WalkieInterface({ radio }) {
             ) : null}
           </div>
           <p className="mt-2 font-mono text-[9px] uppercase leading-relaxed tracking-[0.12em] text-white/40">
+            Locking prevents new people from joining. Current users stay connected.
+          </p>
+          <p className="mt-1 font-mono text-[9px] uppercase leading-relaxed tracking-[0.12em] text-white/40">
             Recommended MVP group size: up to 8 users for best peer-to-peer audio performance.
           </p>
           {radio.channelLockError ? (
@@ -223,7 +226,7 @@ export function WalkieInterface({ radio }) {
         {isOnlyOperator ? (
           <section className="mt-3 rounded-2xl border border-tactical-green/20 bg-tactical-green/10 p-3 text-center">
             <p className="font-mono text-xs uppercase leading-relaxed tracking-[0.14em] text-tactical-green/75">
-              You are the only operator on CH {radio.channelNumber}. Invite a friend to start talking.
+              You’re live on CH {radio.channelNumber}. Send this invite — the first friend to join can talk instantly.
             </p>
             <button
               type="button"
@@ -231,7 +234,7 @@ export function WalkieInterface({ radio }) {
               className="mt-3 touch-manipulation rounded-xl border border-white/10 bg-black/35 px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.18em] text-white/75 transition active:scale-[0.98]"
             >
               <Copy className="mr-2 inline" size={15} />
-              {inviteStatus === 'copied' ? 'Copied invite link' : inviteStatus === 'error' ? 'Copy Failed' : 'Share Channel'}
+              {inviteStatus === 'copied' ? 'Invite copied — send it to a friend to start talking.' : inviteStatus === 'error' ? 'Copy Failed' : 'Share Channel'}
             </button>
           </section>
         ) : null}

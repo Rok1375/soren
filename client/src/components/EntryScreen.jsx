@@ -4,6 +4,7 @@ import { createRandomChannel, getChannelCategory } from '../lib/channels';
 import { shareInviteLink } from '../lib/invite';
 
 const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+const useCaseChips = ['Friends', 'Gaming', 'Events', 'Crews', 'Family', 'Fitness Teams'];
 const IGNORED_HELPER_MS = 1600;
 
 export function EntryScreen({
@@ -84,23 +85,43 @@ export function EntryScreen({
       <div className="absolute -top-28 h-72 w-72 rounded-full bg-tactical-green/10 blur-3xl" />
       <section className="relative w-full max-w-md rounded-[2rem] border border-tactical-edge bg-tactical-panel/90 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl">
         <div className="rounded-[1.45rem] border border-white/10 bg-gradient-to-b from-white/8 to-black/40 p-4 shadow-insetPanel">
-          <div className="mb-5 flex items-center justify-between">
+          <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="font-mono text-xs uppercase tracking-[0.35em] text-tactical-green/70">Digital Internet Radio</p>
               <h1 className="mt-2 text-4xl font-bold uppercase leading-none tracking-tight">Walkie Talking</h1>
+              <p className="mt-3 max-w-[18rem] text-sm leading-relaxed text-white/72">
+                Instant push-to-talk voice rooms. Enter a channel code, share the link, and talk live in your browser — no app install.
+              </p>
             </div>
             <div className="grid h-14 w-14 place-items-center rounded-2xl border border-tactical-green/30 bg-tactical-green/10 shadow-signal">
               <Radio className="text-tactical-green" size={28} />
             </div>
           </div>
 
-          <div className="mb-4 grid grid-cols-3 gap-2 text-center text-[10px] uppercase tracking-[0.18em] text-white/55">
+          <div className="mb-3 grid grid-cols-3 gap-2 text-center text-[10px] uppercase tracking-[0.18em] text-white/55">
             <div className="rounded-xl border border-white/10 bg-black/30 p-3"><SignalHigh className="mx-auto mb-1 text-tactical-green" size={18} />Internet</div>
             <div className="rounded-xl border border-white/10 bg-black/30 p-3"><Users className="mx-auto mb-1 text-tactical-green" size={18} />Rooms</div>
             <div className="rounded-xl border border-white/10 bg-black/30 p-3"><Shield className="mx-auto mb-1 text-tactical-green" size={18} />PTT Lock</div>
           </div>
 
-          <form className="space-y-4" onSubmit={onJoin}>
+          <section className="mb-3 rounded-2xl border border-white/10 bg-black/30 p-3">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-tactical-green/80">How it works</p>
+            <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm leading-snug text-white/70">
+              <li>1. Pick a channel code.</li>
+              <li>2. Share the invite link.</li>
+              <li>3. Hold Push-to-Talk to speak.</li>
+              <li>4. Release to listen.</li>
+            </ol>
+            <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Common Walkie Talking use cases">
+              {useCaseChips.map((chip) => (
+                <span key={chip} className="rounded-full border border-tactical-green/15 bg-tactical-green/10 px-2.5 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-tactical-green/75">
+                  {chip}
+                </span>
+              ))}
+            </div>
+          </section>
+
+          <form className="space-y-3" onSubmit={onJoin}>
             <label className="block">
               <span className="mb-2 block font-mono text-xs uppercase tracking-[0.24em] text-white/50">Operator name</span>
               <input
@@ -121,6 +142,9 @@ export function EntryScreen({
               <div className="mb-2 inline-flex rounded-full border border-tactical-green/20 bg-tactical-green/10 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-tactical-green/70">
                 Internet room code — not RF
               </div>
+              <p className="mb-3 text-sm leading-relaxed text-white/65">
+                Internet room code, not a radio frequency. Anyone with this code or invite link can join while the channel is open.
+              </p>
 
               <div className={`lcd-glass relative overflow-hidden rounded-2xl border px-4 py-4 shadow-signal ${channelValidation.valid ? 'border-tactical-green/35 bg-[#9dff75]/10' : 'border-tactical-amber/35 bg-tactical-amber/10'}`}>
                 <div className="absolute inset-0 animate-scan bg-gradient-to-b from-transparent via-white/10 to-transparent" />
@@ -197,7 +221,7 @@ export function EntryScreen({
                 className="mt-3 touch-manipulation w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.18em] text-white/70 transition active:scale-[0.98] disabled:opacity-35"
               >
                 <Copy className="mr-2 inline" size={15} />
-                {inviteStatus === 'copied' ? 'Copied invite link' : inviteStatus === 'error' ? 'Copy Failed' : 'Copy Invite Link'}
+                {inviteStatus === 'copied' ? 'Invite copied — send it to a friend to start talking.' : inviteStatus === 'error' ? 'Copy Failed' : 'Copy Invite Link'}
               </button>
             </section>
 
@@ -240,6 +264,9 @@ export function EntryScreen({
               <p className="mt-2 text-sm leading-relaxed text-white/68">
                 Your browser will ask for microphone access when you join a channel. Your mic stays muted until you hold Push-to-Talk.
               </p>
+              <p className="mt-2 rounded-xl border border-tactical-green/15 bg-tactical-green/10 px-3 py-2 text-sm leading-relaxed text-white/72">
+                Live browser audio. Your mic only transmits while Push-to-Talk is held.
+              </p>
               <ul className="mt-3 space-y-1.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.12em] text-white/50">
                 <li>• Mic access is required for live voice.</li>
                 <li>• You are not transmitting while in LISTENING mode.</li>
@@ -259,7 +286,7 @@ export function EntryScreen({
           </form>
 
           <p className="mt-4 text-center text-xs leading-relaxed text-white/45">
-            Virtual channel ID only — not RF. Users on the exact same string, like 007, share one encrypted internet room.
+            Virtual channel ID only — not RF. Users on the exact same string, like 007, share one code-based internet voice room.
           </p>
         </div>
       </section>
