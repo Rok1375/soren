@@ -10,7 +10,7 @@ export function getChannelValidation(channel) {
   if (!/^\d+$/.test(value)) return { valid: false, message: 'Channels use numbers only.' };
   if (value.length < 3) return { valid: false, message: 'Channel too short — use 3 to 6 digits.' };
   if (value.length > 6) return { valid: false, message: 'Channel too long — maximum is 6 digits.' };
-  return { valid: true, message: 'Channel locked. Ready to tune.' };
+  return { valid: true, message: 'Channel code ready' };
 }
 
 export function createRandomChannel() {
