@@ -6,9 +6,79 @@ import { playEndBeep, playStartBeep, startStatic, stopStatic } from '../lib/radi
 const DEFAULT_SIGNALING_URL = 'http://localhost:3001';
 const SIGNALING_URL = (import.meta.env.VITE_SIGNALING_URL || DEFAULT_SIGNALING_URL).trim();
 const BUSY_MESSAGE_MS = 1200;
+const JOIN_ACK_TIMEOUT_MS = 12000;
+const JOIN_TIMEOUT_MESSAGE = 'Could not join channel. Check your connection and try again.';
 
 function webrtcDebug(message, details = {}) {
   console.log(`[WebRTC] ${message}`, details);
+}
+
+function joinDebug(message, details = {}) {
+  console.log(`[Join] ${message}`, details);
+}
+
+function waitForSocketConnection(socket, timeoutMs) {
+  if (!socket) return Promise.reject(new Error(JOIN_TIMEOUT_MESSAGE));
+  if (socket.connected) {
+    joinDebug('socket connected', { socketId: socket.id, alreadyConnected: true });
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      socket.off('connect', handleConnect);
+      socket.off('connect_error', handleConnectError);
+    };
+    const settle = (callback) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const handleConnect = () => settle(() => {
+      joinDebug('socket connected', { socketId: socket.id, alreadyConnected: false });
+      resolve();
+    });
+    const handleConnectError = (error) => {
+      joinDebug('join failed', { stage: 'socket connect', message: error?.message });
+    };
+    const timeoutId = window.setTimeout(() => settle(() => {
+      joinDebug('join timed out', { stage: 'socket connect', timeoutMs });
+      reject(new Error(JOIN_TIMEOUT_MESSAGE));
+    }), timeoutMs);
+
+    socket.on('connect', handleConnect);
+    socket.on('connect_error', handleConnectError);
+    socket.connect();
+  });
+}
+
+function emitJoinWithTimeout(socket, payload, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeoutId = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      joinDebug('join timed out', { channelNumber: payload.channelNumber, timeoutMs });
+      reject(new Error(JOIN_TIMEOUT_MESSAGE));
+    }, timeoutMs);
+
+    joinDebug('join emitted', { channelNumber: payload.channelNumber, username: payload.username });
+    socket.emit('channel:join', payload, (response) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      joinDebug('join ack received', {
+        ok: response?.ok,
+        error: response?.error,
+        channelNumber: response?.channelNumber,
+        users: response?.users,
+      });
+      resolve(response);
+    });
+  });
 }
 
 function getStatus({ joined, transmittingSocketId, mySocketId, isHolding, attemptedWhileBusy }) {
@@ -117,6 +187,7 @@ export function useWalkieTalkie() {
     }
 
     setMicStatus('requesting');
+    joinDebug('mic permission requesting');
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -128,6 +199,7 @@ export function useWalkieTalkie() {
         video: false,
       });
       setMicStatus('granted');
+      joinDebug('mic granted');
       webrtcDebug('local mic stream granted', {
         streamId: stream.id,
         audioTracks: stream.getAudioTracks().map((track) => ({
@@ -451,13 +523,18 @@ export function useWalkieTalkie() {
   }, [callPeer, clearBusyAttempt, closePeer, getPeer]);
 
   const joinChannel = useCallback(async ({ username, channelNumber: requestedChannel }) => {
+    joinDebug('join started', { channelNumber: requestedChannel, username });
     setError('');
     clearBusyAttempt();
     try {
       await ensureLocalStream();
-      const response = await new Promise((resolve) => {
-        socketRef.current.emit('channel:join', { username, channelNumber: requestedChannel }, resolve);
-      });
+      const socket = socketRef.current;
+      await waitForSocketConnection(socket, JOIN_ACK_TIMEOUT_MS);
+      const response = await emitJoinWithTimeout(
+        socket,
+        { username, channelNumber: requestedChannel },
+        JOIN_ACK_TIMEOUT_MS,
+      );
 
       if (!response?.ok) {
         if (response?.error === 'CHANNEL_LOCKED') {
@@ -486,6 +563,7 @@ export function useWalkieTalkie() {
       await Promise.all((response.peers || []).map((peerId) => callPeer(peerId)));
       return response;
     } catch (err) {
+      joinDebug('join failed', { message: err?.message });
       setError(err.message || 'Microphone permission or signaling failed.');
       throw err;
     }

@@ -58,6 +58,7 @@ export default function App() {
       ]);
       setRecentChannels(saveRecentChannel(channelInput));
     } finally {
+      console.log('[Join] tuning reset', { channelNumber: channelInput });
       setIsTuning(false);
     }
   }
