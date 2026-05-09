@@ -686,6 +686,12 @@ export function useWalkieTalkie() {
 
   const startTransmitting = useCallback(async () => {
     if (!joined) return false;
+    if (muted) {
+      setIsHolding(false);
+      setMicEnabled(false);
+      setError('Unmute to transmit.');
+      return false;
+    }
     if (isBusy) {
       setIsHolding(false);
       setMicEnabled(false);
@@ -726,6 +732,9 @@ export function useWalkieTalkie() {
     setMuted((next) => {
       const newMuted = !next;
       if (isTransmitting) setMicEnabled(!newMuted);
+      if (newMuted && !isTransmitting) {
+        setError('');
+      }
       return newMuted;
     });
   }, [isTransmitting, setMicEnabled]);

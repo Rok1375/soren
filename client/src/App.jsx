@@ -206,9 +206,6 @@ export default function App() {
       onSetChannelLabel={handleSetChannelLabel}
       roomVibes={roomVibes}
       onSetRoomVibe={handleSetRoomVibe}
-      themeId={themeId}
-      themes={THEMES}
-      onThemeChange={setThemeId}
     />
   );
 }

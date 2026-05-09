@@ -56,7 +56,7 @@ function getStatusTone(status) {
   return 'primary';
 }
 
-export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLabels, onSetChannelLabel, roomVibes, onSetRoomVibe, themeId, themes, onThemeChange }) {
+export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLabels, onSetChannelLabel, roomVibes, onSetRoomVibe }) {
   const [inviteStatus, setInviteStatus] = useState('idle');
   const [qrOpen, setQrOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
@@ -273,50 +273,11 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
         <section className="lcd-glass relative overflow-hidden rounded-[1.7rem] border border-tactical-green/25 bg-[#8dff6a]/10 p-4 shadow-signal">
           <div className="absolute inset-0 animate-scan bg-gradient-to-b from-transparent via-white/8 to-transparent" />
           <div className="absolute inset-x-0 top-1/2 h-px bg-tactical-green/25" />
-          <div className="relative mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="relative mb-2 flex items-center justify-between gap-2">
             <div className="inline-flex rounded-full border border-tactical-green/20 bg-black/25 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-tactical-green/70">
               Internet room code — not RF
             </div>
-            <div className="flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={onToggleFavorite}
-                className={`touch-manipulation rounded-full border px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition active:scale-[0.98] ${
-                  isFavorite
-                    ? 'border-tactical-amber/30 bg-tactical-amber/10 text-tactical-amber shadow-[0_0_10px_rgba(245,158,11,.15)]'
-                    : 'border-white/10 bg-black/45 text-white/50 hover:text-white/80'
-                }`}
-                title={isFavorite ? 'Remove from favorites' : 'Save to favorites'}
-              >
-                <Star className={`mr-1 inline ${isFavorite ? 'fill-current' : ''}`} size={12} />
-                {isFavorite ? 'SAVED' : 'SAVE'}
-              </button>
-              <button
-                type="button"
-                onClick={copyInviteLink}
-                className="touch-manipulation rounded-full border border-white/10 bg-black/35 px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-white/65 transition active:scale-[0.98]"
-              >
-                <Copy className="mr-1 inline" size={12} />
-                {inviteStatus === 'copied' ? 'Invite copied — send it to a friend to start talking.' : inviteStatus === 'error' ? 'Copy failed' : 'Share Channel'}
-              </button>
-                <button
-                  type="button"
-                  onClick={() => setQrOpen(true)}
-                  className="touch-manipulation rounded-full border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber transition active:scale-[0.98]"
-                >
-                  <QrCode className="mr-1 inline" size={12} />
-                  Show QR
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCardOpen(true)}
-                  className="touch-manipulation rounded-full border border-tactical-green/20 bg-tactical-green/10 px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-green transition active:scale-[0.98]"
-                >
-                  <Share2 className="mr-1 inline" size={12} />
-                  Signal Card
-                </button>
-              </div>
-</div>
+          </div>
           <div className="relative flex items-end justify-between gap-3">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-tactical-green/60">
@@ -362,22 +323,14 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
                 >
                   {radio.channelLocked ? <Unlock size={14} /> : <Lock size={14} />}
                 </button>
-                <button
-                  type="button"
-                  onClick={copyInviteLink}
-                  className="touch-manipulation rounded-xl border border-white/10 bg-black/35 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white/75 transition active:scale-[0.98]"
-                  title="Share Invite"
-                >
-                  <Copy size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setQrOpen(true)}
-                  className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-tactical-amber transition active:scale-[0.98]"
-                  title="Show QR"
-                >
-                  <QrCode size={14} />
-                </button>
+              <button
+                type="button"
+                onClick={copyInviteLink}
+                className="touch-manipulation rounded-xl border border-white/10 bg-black/35 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white/75 transition active:scale-[0.98]"
+                title="Share Invite"
+              >
+                <Copy size={14} />
+              </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -487,22 +440,46 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
         </section>
 
         <section className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
-          <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">Radio Theme</div>
-          <div className="grid grid-cols-3 gap-1.5">
-            {themes.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => onThemeChange(t.id)}
-                className={`rounded-lg border px-1 py-2 font-mono text-[8px] font-bold uppercase tracking-[0.1em] transition active:scale-95 ${
-                  themeId === t.id
-                    ? 'border-tactical-green bg-tactical-green/20 text-tactical-green shadow-signal'
-                    : 'border-white/10 bg-black/40 text-white/40 hover:border-white/20'
-                }`}
-              >
-                {t.name}
-              </button>
-            ))}
+          <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+            <span>Room Tools</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={copyInviteLink}
+              className="touch-manipulation rounded-xl border border-white/10 bg-black/35 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-white/65 transition active:scale-[0.98]"
+            >
+              <Copy className="mr-1 inline" size={14} />
+              Copy Link
+            </button>
+            <button
+              type="button"
+              onClick={() => setQrOpen(true)}
+              className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber transition active:scale-[0.98]"
+            >
+              <QrCode className="mr-1 inline" size={14} />
+              Show QR
+            </button>
+            <button
+              type="button"
+              onClick={onToggleFavorite}
+              className={`touch-manipulation rounded-xl border px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition active:scale-[0.98] ${
+                isFavorite
+                  ? 'border-tactical-amber/30 bg-tactical-amber/10 text-tactical-amber'
+                  : 'border-white/10 bg-white/5 text-white/40'
+              }`}
+            >
+              <Star className={`mr-1 inline ${isFavorite ? 'fill-current' : ''}`} size={14} />
+              {isFavorite ? 'Saved' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCardOpen(true)}
+              className="touch-manipulation rounded-xl border border-tactical-green/20 bg-tactical-green/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-green transition active:scale-[0.98]"
+            >
+              <Share2 className="mr-1 inline" size={14} />
+              Signal Card
+            </button>
           </div>
         </section>
 
@@ -598,7 +575,7 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
             <p className="font-mono text-xs uppercase leading-relaxed tracking-[0.14em] text-tactical-green/75">
               You&apos;re live on CH {radio.channelNumber}. Send the signal — first friend to join can talk instantly.
             </p>
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="mt-3 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={copyInviteLink}
@@ -614,14 +591,6 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
               >
                 <QrCode className="mx-auto" size={15} />
                 QR
-              </button>
-              <button
-                type="button"
-                onClick={() => setCardOpen(true)}
-                className="touch-manipulation rounded-xl border border-tactical-green/20 bg-tactical-green/10 px-3 py-3 font-mono text-xs font-bold uppercase tracking-[0.12em] text-tactical-green transition active:scale-[0.98]"
-              >
-                <Share2 className="mx-auto" size={15} />
-                Card
               </button>
             </div>
           </section>
@@ -652,7 +621,20 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
           </p>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
-            <button type="button" onClick={radio.toggleMute} className="touch-manipulation rounded-2xl border border-white/10 bg-black/45 px-4 py-4 font-bold uppercase tracking-[0.16em] text-white/80 transition active:scale-[0.98]">
+            <button
+              type="button"
+              onClick={() => {
+                if (radio.muted) {
+                  radio.toggleMute();
+                } else if (radio.isHolding || radio.isTransmitting) {
+                  radio.stopTransmitting();
+                  radio.toggleMute();
+                } else {
+                  radio.toggleMute();
+                }
+              }}
+              className="touch-manipulation rounded-2xl border border-white/10 bg-black/45 px-4 py-4 font-bold uppercase tracking-[0.16em] text-white/80 transition active:scale-[0.98]"
+            >
               {radio.muted ? 'Unmute' : 'Mute'}
             </button>
             <button type="button" onClick={radio.leaveChannel} className="touch-manipulation rounded-2xl border border-tactical-red/30 bg-tactical-red/10 px-4 py-4 font-bold uppercase tracking-[0.16em] text-tactical-red transition active:scale-[0.98]">
@@ -714,35 +696,15 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
               {/* The Actual Card to Image */}
               <div 
                 ref={cardRef}
-                className={`relative aspect-[4/5] w-full overflow-hidden rounded-[2rem] border border-tactical-edge bg-gradient-to-b from-[#111b14] to-[#020302] p-8 text-white shadow-2xl ${
-                  themeId === 'amber-lcd' ? 'theme-amber-card' :
-                  themeId === 'cyber-blue' ? 'theme-blue-card' :
-                  themeId === 'emergency-red' ? 'theme-red-card' :
-                  themeId === 'retro-radio' ? 'theme-retro-card' : ''
-                }`}
+                className="relative aspect-[4/5] w-full overflow-hidden rounded-[2rem] border border-tactical-edge bg-gradient-to-b from-[#111b14] to-[#020302] p-8 text-white shadow-2xl"
               >
                 <div className="noise-overlay absolute inset-0 opacity-10" />
-                <div className={`absolute -right-20 -top-20 h-64 w-64 rounded-full blur-3xl ${
-                  themeId === 'amber-lcd' ? 'bg-tactical-amber/5' :
-                  themeId === 'cyber-blue' ? 'bg-cyan-500/5' :
-                  themeId === 'emergency-red' ? 'bg-red-500/5' :
-                  'bg-tactical-green/5'
-                }`} />
+                <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full blur-3xl bg-tactical-green/5" />
                 
                 <div className="relative h-full flex flex-col">
                   <header className="mb-6 flex items-center gap-3">
-                    <div className={`grid h-12 w-12 place-items-center rounded-xl border shadow-signal ${
-                      themeId === 'amber-lcd' ? 'border-tactical-amber/30 bg-tactical-amber/10' :
-                      themeId === 'cyber-blue' ? 'border-cyan-400/30 bg-cyan-500/10' :
-                      themeId === 'emergency-red' ? 'border-red-400/30 bg-red-500/10' :
-                      'border-tactical-green/30 bg-tactical-green/10'
-                    }`}>
-                      <RadioTower className={
-                        themeId === 'amber-lcd' ? 'text-tactical-amber' :
-                        themeId === 'cyber-blue' ? 'text-cyan-400' :
-                        themeId === 'emergency-red' ? 'text-red-400' :
-                        'text-tactical-green'
-                      } size={24} />
+                    <div className="grid h-12 w-12 place-items-center rounded-xl border border-tactical-green/30 bg-tactical-green/10 shadow-signal">
+                      <RadioTower className="text-tactical-green" size={24} />
                     </div>
                     <div>
                       <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-white/60">Walkie Talking</p>
@@ -753,12 +715,7 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
                   <div className="flex-1 flex flex-col items-center justify-center text-center">
                     <p className="mb-2 font-mono text-xs uppercase tracking-[0.3em] text-white/50">PUSH TO TALK</p>
                     <div className="relative">
-                      <h4 className={`font-mono text-7xl font-bold leading-none tracking-tighter drop-shadow-[0_0_20px_rgba(124,255,107,.4)] ${
-                        themeId === 'amber-lcd' ? 'text-tactical-amber drop-shadow-[0_0_20px_rgba(255,191,71,.3)]' :
-                        themeId === 'cyber-blue' ? 'text-cyan-400 drop-shadow-[0_0_20px_rgba(71,209,255,.3)]' :
-                        themeId === 'emergency-red' ? 'text-red-400 drop-shadow-[0_0_20px_rgba(255,71,71,.3)]' :
-                        'text-tactical-green drop-shadow-[0_0_20px_rgba(124,255,107,.4)]'
-                      }`}>
+                      <h4 className="font-mono text-7xl font-bold leading-none tracking-tighter drop-shadow-[0_0_20px_rgba(124,255,107,.4)] text-tactical-green drop-shadow-[0_0_20px_rgba(124,255,107,.4)]">
                         <span className="mr-2 text-2xl opacity-60">CH</span>{radio.channelNumber}
                       </h4>
                       {channelLabels[radio.channelNumber] && (
