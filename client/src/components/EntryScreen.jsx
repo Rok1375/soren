@@ -26,6 +26,7 @@ export function EntryScreen({
   hasInvalidInviteParam,
   isTuning,
   tuningStage,
+  joinStatus,
   micStatus,
   recentChannels,
   onRecentChannelSelect,
@@ -271,7 +272,7 @@ export function EntryScreen({
                     : ignoredInvalidInput
                       ? 'Numbers only — letters and symbols are ignored.'
                       : isTuning
-                        ? tuningStage || `Tuning virtual room ${channelInput}...`
+                        ? joinStatus || tuningStage || `Tuning virtual room ${channelInput}...`
                         : channelValidation.message}
               </p>
 
@@ -343,7 +344,19 @@ export function EntryScreen({
             </p>
           </section>
 
-          {error ? <p className="rounded-xl border border-tactical-red/30 bg-tactical-red/10 p-3 text-sm text-tactical-red">{error}</p> : null}
+          {error ? (
+            <div className="rounded-xl border border-tactical-red/30 bg-tactical-red/10 p-3 text-sm text-tactical-red">
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={() => onJoin()}
+                disabled={!channelValidation.valid || isTuning}
+                className="mt-3 touch-manipulation rounded-lg border border-tactical-red/30 bg-tactical-red/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-tactical-red transition active:scale-95 disabled:opacity-35"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : null}
 
           {favoriteChannels?.length ? (
               <section className="rounded-2xl border border-tactical-amber/15 bg-black/30 p-3">

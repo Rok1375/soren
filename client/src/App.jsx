@@ -23,12 +23,7 @@ function getInitialTheme() {
   return localStorage.getItem('walkieTalking.theme') || 'tactical-green';
 }
 
-const TUNING_DURATION_MS = 720;
 const DEFAULT_CHANNEL = '272';
-
-function wait(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
 
 function getInitialChannelInput() {
   const params = new URLSearchParams(window.location.search);
@@ -93,6 +88,12 @@ export default function App() {
 
   const channelValidation = useMemo(() => getChannelValidation(channelInput), [channelInput]);
 
+  useEffect(() => {
+    if (isTuning && radio.joinStatus) {
+      setTuningStage(radio.joinStatus);
+    }
+  }, [isTuning, radio.joinStatus]);
+
   function updateChannelInput(value) {
     const sanitized = sanitizeChannelInput(value);
     setChannelInput(sanitized);
@@ -113,43 +114,36 @@ export default function App() {
   }
 
   async function handleJoin(event) {
-    event.preventDefault();
+    event?.preventDefault?.();
     if (!channelValidation.valid || isTuning) return;
 
     setIsTuning(true);
-    setTuningStage('SCANNING CHANNEL');
+    setTuningStage(radio.joinStatus || 'SCANNING CHANNEL');
+    let transitionTimer;
+    let syncTimer;
     
     try {
       localStorage.setItem('walkieTalking.username', username.trim());
-      // Small pause for "intentional" feel without slowing it down significantly
-      await wait(180);
-      setTuningStage('LOCKING SIGNAL');
       
       const joinPromise = radio.joinChannel({
         username: username.trim() || 'Operator',
         channelNumber: channelInput,
       });
 
-      // Update tuning text based on progress - faster, exciting stages
-      const transitionTimer = setTimeout(() => setTuningStage('SYNCING OPERATORS'), 300);
-      const syncTimer = setTimeout(() => setTuningStage('ROOM LINKED'), 600);
+      transitionTimer = setTimeout(() => setTuningStage('LOCKING SIGNAL'), 180);
+      syncTimer = setTimeout(() => setTuningStage('SYNCING OPERATORS'), 420);
 
       await joinPromise;
       
-      clearTimeout(transitionTimer);
-      clearTimeout(syncTimer);
-
       setTuningStage('ROOM LINKED');
-      await wait(TUNING_DURATION_MS / 3);
       
       setRecentChannels(saveRecentChannel(channelInput));
-      // Increment channels joined stat
       incrementChannelsJoined(channelInput);
     } catch (err) {
       console.error('[Join] error during tuning', err);
-      // useWalkieTalkie already sets the error state
-      // Tuning stops automatically via finally block
     } finally {
+      if (transitionTimer) clearTimeout(transitionTimer);
+      if (syncTimer) clearTimeout(syncTimer);
       console.log('[Join] tuning reset', { channelNumber: channelInput });
       setIsTuning(false);
       setTuningStage('');
@@ -195,6 +189,7 @@ export default function App() {
         roomVibes={roomVibes}
         onSetRoomVibe={handleSetRoomVibe}
         tuningStage={tuningStage}
+        joinStatus={radio.joinStatus}
         themeId={themeId}
         themes={THEMES}
         onThemeChange={setThemeId}

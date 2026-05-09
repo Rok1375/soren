@@ -3,11 +3,17 @@ import { io } from 'socket.io-client';
 import { attachAudioStream, createPeerConnection, removeAudioStream, startAudioLevelMeter } from '../lib/webrtc';
 import { playEndBeep, playStartBeep, startStatic, stopStatic } from '../lib/radioAudio';
 
-const DEFAULT_SIGNALING_URL = 'http://localhost:3001';
+const DEFAULT_SIGNALING_URL = import.meta.env.PROD
+  ? 'https://soren-jgkx.onrender.com'
+  : 'http://localhost:3001';
 const SIGNALING_URL = (import.meta.env.VITE_SIGNALING_URL || DEFAULT_SIGNALING_URL).trim();
+const BACKEND_HEALTH_URL = `${SIGNALING_URL.replace(/\/$/, '')}/health`;
 const BUSY_MESSAGE_MS = 1200;
 const JOIN_ACK_TIMEOUT_MS = 12000;
+const BACKEND_WARM_TIMEOUT_MS = 8000;
 const JOIN_TIMEOUT_MESSAGE = 'Could not join channel. Check your connection and try again.';
+const CONNECTING_MESSAGE = 'Connecting to radio server...';
+const WAKING_MESSAGE = 'Waking radio server...';
 
 function webrtcDebug(message, details = {}) {
   console.log(`[WebRTC] ${message}`, details);
@@ -15,6 +21,25 @@ function webrtcDebug(message, details = {}) {
 
 function joinDebug(message, details = {}) {
   console.log(`[Join] ${message}`, details);
+}
+
+async function warmBackend(timeoutMs = BACKEND_WARM_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(BACKEND_HEALTH_URL, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    joinDebug('backend health checked', { ok: response.ok, status: response.status });
+    return response.ok;
+  } catch (error) {
+    joinDebug('backend warm failed', { name: error?.name, message: error?.message });
+    return false;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }
 
 function waitForSocketConnection(socket, timeoutMs) {
@@ -130,6 +155,7 @@ export function useWalkieTalkie() {
   const [channelState, setChannelState] = useState(null);
   const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
+  const [joinStatus, setJoinStatus] = useState('');
 
   const socketRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -405,6 +431,7 @@ export function useWalkieTalkie() {
     const activePeers = peersRef.current;
     const activeRemoteAudioLevelStops = remoteAudioLevelStopsRef.current;
     socketRef.current = socket;
+    warmBackend();
 
     socket.on('server:ready', ({ socketId: id }) => {
       webrtcDebug('local socket id', { socketId: id });
@@ -566,11 +593,25 @@ export function useWalkieTalkie() {
   const joinChannel = useCallback(async ({ username, channelNumber: requestedChannel }) => {
     joinDebug('join started', { channelNumber: requestedChannel, username });
     setError('');
+    setJoinStatus(CONNECTING_MESSAGE);
     clearBusyAttempt();
     try {
-      await ensureLocalStream();
       const socket = socketRef.current;
-      await waitForSocketConnection(socket, JOIN_ACK_TIMEOUT_MS);
+      const socketReadyPromise = (async () => {
+        try {
+          await waitForSocketConnection(socket, JOIN_ACK_TIMEOUT_MS);
+        } catch (connectError) {
+          joinDebug('initial socket connect failed; warming backend before retry', { message: connectError?.message });
+          setJoinStatus(WAKING_MESSAGE);
+          await warmBackend();
+          socket?.connect();
+          await waitForSocketConnection(socket, JOIN_ACK_TIMEOUT_MS);
+        }
+      })();
+      const streamReadyPromise = ensureLocalStream();
+
+      await Promise.all([socketReadyPromise, streamReadyPromise]);
+      setJoinStatus('Joining channel...');
       const response = await emitJoinWithTimeout(
         socket,
         { username, channelNumber: requestedChannel },
@@ -596,6 +637,7 @@ export function useWalkieTalkie() {
       setChannelLocked(Boolean(response.state.locked ?? response.locked));
       setChannelLockError('');
       setTransmittingSocketId(response.state.transmittingSocketId);
+      setJoinStatus('');
 
       webrtcDebug('channel joined', {
         localSocketId: socketRef.current?.id,
@@ -608,6 +650,7 @@ export function useWalkieTalkie() {
     } catch (err) {
       joinDebug('join failed', { message: err?.message });
       setError(err.message || 'Microphone permission or signaling failed.');
+      setJoinStatus('');
       throw err;
     }
   }, [callPeer, clearBusyAttempt, ensureLocalStream]);
@@ -735,6 +778,7 @@ export function useWalkieTalkie() {
     transmittingUser: users.find((user) => user.socketId === transmittingSocketId) || null,
     events,
     error,
+    joinStatus,
     joinChannel,
     leaveChannel,
     startTransmitting,
