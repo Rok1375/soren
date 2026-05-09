@@ -9,6 +9,53 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Tactical Green (Default) */
+  --tactical-primary: #7cff6b;
+  --tactical-primary-rgb: 124, 255, 107;
+  --tactical-accent: #f59e0b;
+  --tactical-accent-rgb: 245, 158, 11;
+  --tactical-bg-glow: rgba(124, 255, 107, 0.13);
+}
+
+.theme-amber {
+  --tactical-primary: #ffbf47;
+  --tactical-primary-rgb: 255, 191, 71;
+  --tactical-accent: #ff4747;
+  --tactical-accent-rgb: 255, 71, 71;
+  --tactical-bg-glow: rgba(255, 191, 71, 0.13);
+}
+
+.theme-blue {
+  --tactical-primary: #47d1ff;
+  --tactical-primary-rgb: 71, 209, 255;
+  --tactical-accent: #7cff6b;
+  --tactical-accent-rgb: 124, 255, 107;
+  --tactical-bg-glow: rgba(71, 209, 255, 0.13);
+}
+
+.theme-red {
+  --tactical-primary: #ff4747;
+  --tactical-primary-rgb: 255, 71, 71;
+  --tactical-accent: #ffbf47;
+  --tactical-accent-rgb: 255, 191, 71;
+  --tactical-bg-glow: rgba(255, 71, 71, 0.13);
+}
+
+.theme-stealth {
+  --tactical-primary: #ffffff;
+  --tactical-primary-rgb: 255, 255, 255;
+  --tactical-accent: #7cff6b;
+  --tactical-accent-rgb: 124, 255, 107;
+  --tactical-bg-glow: rgba(255, 255, 255, 0.08);
+}
+
+.theme-retro {
+  --tactical-primary: #efdfbb;
+  --tactical-primary-rgb: 239, 223, 187;
+  --tactical-accent: #ffbf47;
+  --tactical-accent-rgb: 255, 191, 71;
+  --tactical-bg-glow: rgba(239, 223, 187, 0.1);
 }
 
 * {
@@ -27,8 +74,8 @@ body {
   min-height: 100dvh;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at 50% 0%, rgba(124, 255, 107, 0.13), transparent 34rem),
-    radial-gradient(circle at 20% 80%, rgba(255, 191, 71, 0.06), transparent 22rem),
+    radial-gradient(circle at 50% 0%, var(--tactical-bg-glow), transparent 34rem),
+    radial-gradient(circle at 20% 80%, rgba(var(--tactical-accent-rgb), 0.06), transparent 22rem),
     #030504;
 }
 
@@ -42,7 +89,7 @@ input {
   opacity: 0.06;
   mix-blend-mode: screen;
   background-image:
-    linear-gradient(115deg, transparent 0 35%, rgba(124,255,107,.18) 36%, transparent 37% 100%),
+    linear-gradient(115deg, transparent 0 35%, rgba(var(--tactical-primary-rgb), .18) 36%, transparent 37% 100%),
     repeating-radial-gradient(circle at 18% 22%, rgba(255,255,255,.7) 0 1px, transparent 1px 3px);
 }
 

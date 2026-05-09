@@ -272,6 +272,97 @@ io.on('connection', (socket) => {
     emitChannelState(channelNumber);
   });
 
+  socket.on('channel:end', (_payload, ack) => {
+    const channelNumber = socket.data.channelNumber;
+    if (!channelNumber) {
+      ack?.({ ok: false, error: 'Join a channel first.' });
+      return;
+    }
+
+    const channel = getChannel(channelNumber);
+    if (!channel) {
+      ack?.({ ok: false, error: 'Channel no longer exists.' });
+      return;
+    }
+
+    if (channel.hostSocketId !== socket.id) {
+      ack?.({ ok: false, error: 'NOT_HOST' });
+      return;
+    }
+
+    io.to(channelNumber).emit('channel:ended', { 
+      message: 'The host ended this channel session.' 
+    });
+
+    // Clean up channel state before disconnecting everyone
+    channels.delete(channelNumber);
+
+    // Get all sockets in the channel and make them leave it
+    const sockets = io.sockets.adapter.rooms.get(channelNumber);
+    if (sockets) {
+      for (const socketId of sockets) {
+        const s = io.sockets.sockets.get(socketId);
+        if (s) {
+          s.leave(channelNumber);
+          s.data.channelNumber = null;
+        }
+      }
+    }
+
+    ack?.({ ok: true });
+  });
+
+  socket.on('channel:remove-user', ({ targetSocketId }, ack) => {
+    const channelNumber = socket.data.channelNumber;
+    if (!channelNumber) {
+      ack?.({ ok: false, error: 'Join a channel first.' });
+      return;
+    }
+
+    const channel = getChannel(channelNumber);
+    if (!channel) {
+      ack?.({ ok: false, error: 'Channel no longer exists.' });
+      return;
+    }
+
+    if (channel.hostSocketId !== socket.id) {
+      ack?.({ ok: false, error: 'NOT_HOST' });
+      return;
+    }
+
+    if (targetSocketId === socket.id) {
+      ack?.({ ok: false, error: 'CANNOT_REMOVE_SELF' });
+      return;
+    }
+
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    if (!targetSocket || !channel.users.has(targetSocketId)) {
+      ack?.({ ok: false, error: 'USER_NOT_FOUND' });
+      return;
+    }
+
+    // Notify target
+    io.to(targetSocketId).emit('channel:removed', {
+      message: 'You were removed from this channel by the host.'
+    });
+
+    // Clean up
+    const wasTransmitting = channel.transmittingSocketId === targetSocketId;
+    channel.users.delete(targetSocketId);
+    targetSocket.leave(channelNumber);
+    targetSocket.data.channelNumber = null;
+
+    if (wasTransmitting) {
+      channel.transmittingSocketId = null;
+      io.to(channelNumber).emit('ptt:ended', { socketId: targetSocketId });
+    }
+
+    io.to(channelNumber).emit('peer:left', { socketId: targetSocketId });
+    emitChannelState(channelNumber);
+
+    ack?.({ ok: true });
+  });
+
   socket.on('signal:offer', ({ to, description }) => {
     io.to(to).emit('signal:offer', { from: socket.id, description });
   });
