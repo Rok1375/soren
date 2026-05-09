@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { toPng } from 'html-to-image';
 import { Waveform } from './Waveform';
 import { createInviteLink, shareInviteLink } from '../lib/invite';
+import { formatTimeAgo, getLocalStats, incrementTransmissions, resetLocalStats } from '../lib/localStats';
 
 const statusStyles = {
   OFFLINE: 'text-white/50 border-white/10 bg-white/5',
@@ -55,16 +56,33 @@ function getStatusTone(status) {
   return 'primary';
 }
 
-export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLabels, onSetChannelLabel, themeId, themes, onThemeChange }) {
+export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLabels, onSetChannelLabel, roomVibes, onSetRoomVibe, themeId, themes, onThemeChange }) {
   const [inviteStatus, setInviteStatus] = useState('idle');
   const [qrOpen, setQrOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
+  const [stats, setStats] = useState(() => getLocalStats());
   const cardRef = useRef(null);
   const inviteTimerRef = useRef(null);
   const statusClass = statusStyles[radio.status] || statusStyles.OFFLINE;
   const waveformActive = radio.isTransmitting || radio.status === 'RECEIVING' || radio.status === 'CHANNEL BUSY';
   const isOnlyOperator = radio.joined && radio.onlineCount <= 1;
   const inviteUrl = createInviteLink(radio.channelNumber);
+  const isMeTransmitting = radio.isTransmitting;
+  const prevTransmittingRef = useRef(false);
+  
+  // Track transmissions
+  useEffect(() => {
+    if (isMeTransmitting && !prevTransmittingRef.current) {
+      setStats(incrementTransmissions());
+    }
+    prevTransmittingRef.current = isMeTransmitting;
+  }, [isMeTransmitting]);
+
+  useEffect(() => {
+    if (radio.joined) {
+      setStats(getLocalStats());
+    }
+  }, [radio.joined, radio.channelNumber]);
 
   const connectionBadges = [];
   if (radio.joined) {
@@ -307,6 +325,11 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
               <h2 className="font-mono text-6xl font-bold leading-none tracking-[0.06em] text-tactical-green drop-shadow-[0_0_16px_rgba(124,255,107,.45)] sm:text-7xl">
                 <span className="mr-2 text-2xl tracking-[0.18em] text-tactical-green/65">CH</span>{radio.channelNumber}
               </h2>
+              {roomVibes && roomVibes[radio.channelNumber] && (
+                <p className="mt-1 inline-flex rounded-full border border-tactical-amber/30 bg-tactical-amber/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber">
+                  {roomVibes[radio.channelNumber]}
+                </p>
+              )}
             </div>
             <div className="mb-2 text-right">
               <SignalBars active={radio.status !== 'OFFLINE'} />
@@ -322,15 +345,15 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
         </section>
 
         <section className={`mt-3 rounded-2xl border p-3 ${radio.channelLocked ? 'border-tactical-amber/25 bg-tactical-amber/10' : 'border-tactical-green/20 bg-tactical-green/10'}`}>
-          <div className="flex items-center justify-between gap-3">
-            <div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/40">{radio.isHost ? 'HOST CONTROLS' : 'Channel Status'}</p>
               <p className={`mt-1 font-mono text-xs font-bold uppercase tracking-[0.16em] ${radio.channelLocked ? 'text-tactical-amber' : 'text-tactical-green'}`}>
                 {radio.channelLocked ? 'CHANNEL LOCKED' : 'CHANNEL OPEN'}
               </p>
             </div>
             {radio.isHost ? (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => radio.setChannelLock(!radio.channelLocked)}
@@ -365,7 +388,8 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
                   className="touch-manipulation rounded-xl border border-tactical-red/30 bg-tactical-red/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-tactical-red transition active:scale-[0.98]"
                   title="End Room"
                 >
-                  End Room
+                  <span className="hidden sm:inline">End Room</span>
+                  <span className="sm:hidden">END</span>
                 </button>
               </div>
             ) : (
@@ -380,7 +404,7 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
               : "Locking prevents new people from joining. Current users stay connected."}
           </p>
           {!radio.isHost && (
-            <p className="mt-1 text-xs leading-relaxed text-white/45">
+            <p className="hidden mt-1 text-xs leading-relaxed text-white/45 sm:block">
               Recommended MVP group size: up to 8 users for best peer-to-peer audio performance.
             </p>
           )}
@@ -482,7 +506,7 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
           </div>
         </section>
 
-        <section className={`mt-3 rounded-2xl border border-white/10 bg-black/30 p-3`}>
+        <section className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
           <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
             <span>Local Label</span>
             <span className="text-white/25">Device Only</span>
@@ -502,19 +526,104 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
           </div>
         </section>
 
+        <section className="mt-3 rounded-2xl border border-tactical-amber/20 bg-black/30 p-3">
+          <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+            <span>Room Vibe</span>
+            <span className="text-white/25">Local Only</span>
+          </div>
+          <p className="mb-3 text-[11px] leading-relaxed text-white/40">
+            Set a fun vibe for this channel — saved only on your device.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {['Gaming', 'Chilling', 'Event Crew', 'Secret Channel', 'Squad Chat', 'Emergency Mode'].map((vibe) => (
+              <button
+                key={vibe}
+                type="button"
+                onClick={() => onSetRoomVibe(radio.channelNumber, roomVibes?.[radio.channelNumber] === vibe ? '' : vibe)}
+                className={`touch-manipulation rounded-full border px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition active:scale-[0.98] ${
+                  roomVibes?.[radio.channelNumber] === vibe
+                    ? 'border-tactical-amber/30 bg-tactical-amber/10 text-tactical-amber shadow-[0_0_10px_rgba(245,158,11,.15)]'
+                    : 'border-white/10 bg-white/5 text-white/40 hover:border-white/20'
+                }`}
+              >
+                {vibe}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
+          <div className="mb-3 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+            <span>Local Stats</span>
+            <span className="text-white/25">Device Only</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-center">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+              <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Channels Joined</p>
+              <p className="font-mono text-xl font-bold text-tactical-green">{stats.channelsJoined || 0}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+              <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Transmissions Today</p>
+              <p className="font-mono text-xl font-bold text-tactical-green">{stats.transmissionsToday || 0}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+              <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Favorite Channel</p>
+              <p className="font-mono text-lg font-bold text-tactical-amber">CH {stats.favoriteChannel || '—'}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+              <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Last Signal</p>
+              <p className="font-mono text-xs font-bold text-white/60">
+                {formatTimeAgo(stats.lastSignal)}
+              </p>
+            </div>
+          </div>
+          <p className="mt-3 text-[10px] leading-relaxed text-white/40">
+            Stats are saved locally on this device.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('Reset all local stats? This cannot be undone.')) {
+                setStats(resetLocalStats());
+              }
+            }}
+            className="mt-2 touch-manipulation rounded-lg border border-tactical-red/20 bg-tactical-red/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-red transition active:scale-95"
+          >
+            Reset Stats
+          </button>
+        </section>
+
         {isOnlyOperator ? (
           <section className="mt-3 rounded-2xl border border-tactical-green/20 bg-tactical-green/10 p-3 text-center">
             <p className="font-mono text-xs uppercase leading-relaxed tracking-[0.14em] text-tactical-green/75">
-              You’re live on CH {radio.channelNumber}. Send this invite — the first friend to join can talk instantly.
+              You&apos;re live on CH {radio.channelNumber}. Send the signal — first friend to join can talk instantly.
             </p>
-            <button
-              type="button"
-              onClick={copyInviteLink}
-              className="mt-3 touch-manipulation rounded-xl border border-white/10 bg-black/35 px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.18em] text-white/75 transition active:scale-[0.98]"
-            >
-              <Copy className="mr-2 inline" size={15} />
-              {inviteStatus === 'copied' ? 'Invite copied — send it to a friend to start talking.' : inviteStatus === 'error' ? 'Copy Failed' : 'Share Channel'}
-            </button>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={copyInviteLink}
+                className="touch-manipulation rounded-xl border border-white/10 bg-black/35 px-3 py-3 font-mono text-xs font-bold uppercase tracking-[0.12em] text-white/75 transition active:scale-[0.98]"
+              >
+                <Copy className="mx-auto" size={15} />
+                Share
+              </button>
+              <button
+                type="button"
+                onClick={() => setQrOpen(true)}
+                className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-3 font-mono text-xs font-bold uppercase tracking-[0.12em] text-tactical-amber transition active:scale-[0.98]"
+              >
+                <QrCode className="mx-auto" size={15} />
+                QR
+              </button>
+              <button
+                type="button"
+                onClick={() => setCardOpen(true)}
+                className="touch-manipulation rounded-xl border border-tactical-green/20 bg-tactical-green/10 px-3 py-3 font-mono text-xs font-bold uppercase tracking-[0.12em] text-tactical-green transition active:scale-[0.98]"
+              >
+                <Share2 className="mx-auto" size={15} />
+                Card
+              </button>
+            </div>
           </section>
         ) : null}
 
@@ -592,7 +701,7 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
           <section className="absolute inset-0 z-20 grid place-items-center rounded-[2.2rem] bg-black/90 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Signal Card invite">
             <div className="w-full max-w-sm">
               <div className="mb-4 flex items-center justify-between gap-3 text-white">
-                <p className="font-mono text-xs uppercase tracking-[0.2em] opacity-60">Invite Preview</p>
+                <p className="font-mono text-xs uppercase tracking-[0.2em] opacity-60">Signal Card</p>
                 <button
                   type="button"
                   onClick={() => setCardOpen(false)}
@@ -605,46 +714,74 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
               {/* The Actual Card to Image */}
               <div 
                 ref={cardRef}
-                className="relative aspect-[4/5] w-full overflow-hidden rounded-[2rem] border border-tactical-edge bg-gradient-to-b from-[#111b14] to-[#020302] p-8 text-white shadow-2xl"
+                className={`relative aspect-[4/5] w-full overflow-hidden rounded-[2rem] border border-tactical-edge bg-gradient-to-b from-[#111b14] to-[#020302] p-8 text-white shadow-2xl ${
+                  themeId === 'amber-lcd' ? 'theme-amber-card' :
+                  themeId === 'cyber-blue' ? 'theme-blue-card' :
+                  themeId === 'emergency-red' ? 'theme-red-card' :
+                  themeId === 'retro-radio' ? 'theme-retro-card' : ''
+                }`}
               >
                 <div className="noise-overlay absolute inset-0 opacity-10" />
-                <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-tactical-green/5 blur-3xl" />
+                <div className={`absolute -right-20 -top-20 h-64 w-64 rounded-full blur-3xl ${
+                  themeId === 'amber-lcd' ? 'bg-tactical-amber/5' :
+                  themeId === 'cyber-blue' ? 'bg-cyan-500/5' :
+                  themeId === 'emergency-red' ? 'bg-red-500/5' :
+                  'bg-tactical-green/5'
+                }`} />
                 
                 <div className="relative h-full flex flex-col">
                   <header className="mb-6 flex items-center gap-3">
-                    <div className="grid h-12 w-12 place-items-center rounded-xl border border-tactical-green/30 bg-tactical-green/10 shadow-signal">
-                      <RadioTower className="text-tactical-green" size={24} />
+                    <div className={`grid h-12 w-12 place-items-center rounded-xl border shadow-signal ${
+                      themeId === 'amber-lcd' ? 'border-tactical-amber/30 bg-tactical-amber/10' :
+                      themeId === 'cyber-blue' ? 'border-cyan-400/30 bg-cyan-500/10' :
+                      themeId === 'emergency-red' ? 'border-red-400/30 bg-red-500/10' :
+                      'border-tactical-green/30 bg-tactical-green/10'
+                    }`}>
+                      <RadioTower className={
+                        themeId === 'amber-lcd' ? 'text-tactical-amber' :
+                        themeId === 'cyber-blue' ? 'text-cyan-400' :
+                        themeId === 'emergency-red' ? 'text-red-400' :
+                        'text-tactical-green'
+                      } size={24} />
                     </div>
                     <div>
-                      <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-tactical-green/60">Walkie Talking</p>
-                      <h3 className="font-bold text-lg uppercase tracking-tight">Signal Invite</h3>
+                      <p className="font-mono text-[10px] uppercase tracking-[0.4em] text-white/60">Walkie Talking</p>
+                      <h3 className="font-bold text-lg uppercase tracking-tight">JOIN MY SIGNAL</h3>
                     </div>
                   </header>
 
                   <div className="flex-1 flex flex-col items-center justify-center text-center">
-                    <p className="mb-2 font-mono text-xs uppercase tracking-[0.3em] text-white/50">Join me on</p>
+                    <p className="mb-2 font-mono text-xs uppercase tracking-[0.3em] text-white/50">PUSH TO TALK</p>
                     <div className="relative">
-                      <h4 className="font-mono text-7xl font-bold leading-none tracking-tighter text-tactical-green drop-shadow-[0_0_20px_rgba(124,255,107,.4)]">
+                      <h4 className={`font-mono text-7xl font-bold leading-none tracking-tighter drop-shadow-[0_0_20px_rgba(124,255,107,.4)] ${
+                        themeId === 'amber-lcd' ? 'text-tactical-amber drop-shadow-[0_0_20px_rgba(255,191,71,.3)]' :
+                        themeId === 'cyber-blue' ? 'text-cyan-400 drop-shadow-[0_0_20px_rgba(71,209,255,.3)]' :
+                        themeId === 'emergency-red' ? 'text-red-400 drop-shadow-[0_0_20px_rgba(255,71,71,.3)]' :
+                        'text-tactical-green drop-shadow-[0_0_20px_rgba(124,255,107,.4)]'
+                      }`}>
                         <span className="mr-2 text-2xl opacity-60">CH</span>{radio.channelNumber}
                       </h4>
                       {channelLabels[radio.channelNumber] && (
-                        <p className="mt-4 font-mono text-sm uppercase tracking-widest text-tactical-amber">
+                        <p className="mt-4 font-mono text-sm uppercase tracking-widest text-white/60">
                           {channelLabels[radio.channelNumber]}
                         </p>
                       )}
                     </div>
+                    <p className="mt-6 inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-white/70">
+                      INTERNET ROOM — NOT RF
+                    </p>
                   </div>
 
-                  <footer className="mt-auto pt-8 border-t border-white/10 flex items-center justify-between gap-6">
-                    <div className="text-left flex-1 min-w-0">
-                      <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-tactical-green/70">Virtual Room Code — Not RF</p>
-                      <p className="mt-1 flex items-center gap-1.5 font-mono text-[8px] text-white/40">
-                         {inviteUrl.replace(/^https?:\/\//, '')}
-                      </p>
+                  <footer className="mt-auto pt-8 border-t border-white/10 flex flex-col items-center gap-4">
+                    <div className="rounded-xl bg-white p-3">
+                      <QRCodeSVG value={inviteUrl} size={96} level="M" />
                     </div>
-                    <div className="rounded-xl bg-white p-2 shrink-0">
-                      <QRCodeSVG value={inviteUrl} size={64} level="M" />
-                    </div>
+                    <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">
+                      Scan to join this internet voice room
+                    </p>
+                    <p className="font-mono text-[7px] text-white/40">
+                      {inviteUrl}
+                    </p>
                   </footer>
                 </div>
               </div>

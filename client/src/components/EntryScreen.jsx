@@ -4,9 +4,16 @@ import { createRandomChannel, getChannelCategory } from '../lib/channels';
 import { shareInviteLink } from '../lib/invite';
 
 const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-const callsignPresets = ['Alpha', 'Bravo', 'Ghost', 'Raven', 'Echo', 'Operator 007'];
+const callsignPresets = ['Ghost', 'Raven', 'Echo', 'Nova', 'Agent 007', 'Static', 'Night Owl', 'Chaos'];
 const useCaseChips = ['Friends', 'Gaming', 'Events', 'Crews', 'Family', 'Fitness Teams'];
 const IGNORED_HELPER_MS = 1600;
+
+const randomCallsignPrefixes = ['Raven', 'Ghost', 'Echo', 'Nova', 'Static', 'Shadow', 'Viper', 'Phoenix'];
+function generateRandomCallsign() {
+  const prefix = randomCallsignPrefixes[Math.floor(Math.random() * randomCallsignPrefixes.length)];
+  const num = Math.floor(Math.random() * 100);
+  return `${prefix}-${String(num).padStart(2, '0')}`;
+}
 
 export function EntryScreen({
   username,
@@ -16,6 +23,7 @@ export function EntryScreen({
   onJoin,
   error,
   channelValidation,
+  hasInvalidInviteParam,
   isTuning,
   tuningStage,
   micStatus,
@@ -26,7 +34,6 @@ export function EntryScreen({
   onToggleFavorite,
   isFavorite,
   channelLabels,
-  onSetChannelLabel,
   themeId,
   themes,
   onThemeChange,
@@ -34,6 +41,7 @@ export function EntryScreen({
   const [ignoredInvalidInput, setIgnoredInvalidInput] = useState(false);
   const [inviteStatus, setInviteStatus] = useState('idle');
   const [qaOpen, setQaOpen] = useState(false);
+  const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const [qaChecks, setQaChecks] = useState(() => {
     try {
       const saved = localStorage.getItem('walkieTalking.qaChecks');
@@ -118,20 +126,20 @@ export function EntryScreen({
   }
 
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-x-hidden px-3 py-4 font-display text-white sm:px-4 sm:py-5">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-x-hidden px-3 py-4 font-display text-white sm:px-4 sm:py-5">
       <div className="noise-overlay absolute inset-0" />
       <div className="absolute -top-28 h-72 w-72 rounded-full bg-tactical-green/10 blur-3xl" />
       <section className="relative w-full max-w-md rounded-[2rem] border border-tactical-edge bg-tactical-panel/90 p-3 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-4">
         <div className="rounded-[1.45rem] border border-white/10 bg-gradient-to-b from-white/8 to-black/40 p-3 shadow-insetPanel sm:p-4">
           <div className="mb-3 flex items-center justify-between">
-            <div>
-              <p className="font-mono text-xs uppercase tracking-[0.35em] text-tactical-green/70">Digital Internet Radio</p>
-              <h1 className="mt-2 text-4xl font-bold uppercase leading-none tracking-tight">Walkie Talking</h1>
-              <p className="mt-3 max-w-[18rem] text-sm leading-relaxed text-white/72">
+            <div className="min-w-0">
+              <p className="hidden font-mono text-xs uppercase tracking-[0.35em] text-tactical-green/70 sm:block">Digital Internet Radio</p>
+              <h1 className="mt-1 text-3xl font-bold uppercase leading-none tracking-tight sm:mt-2 sm:text-4xl">Walkie Talking</h1>
+              <p className="mt-2 max-w-[18rem] text-xs leading-relaxed text-white/72 sm:text-sm">
                 Instant push-to-talk voice rooms. Enter a channel code, share the link, and talk live in your browser — no app install.
               </p>
             </div>
-            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-tactical-green/30 bg-tactical-green/10 shadow-signal">
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-tactical-green/30 bg-tactical-green/10 shadow-signal">
               <Radio className="text-tactical-green" size={28} />
             </div>
           </div>
@@ -143,19 +151,30 @@ export function EntryScreen({
           </div>
 
           <section className="mb-3 rounded-2xl border border-white/10 bg-black/30 p-3">
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-tactical-green/80">How it works</p>
-            <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[13px] leading-snug text-white/70 sm:text-sm">
-              <li>1. Pick a channel code.</li>
-              <li>2. Share the invite link.</li>
-              <li>3. Hold Push-to-Talk to speak.</li>
-              <li>4. Release to listen.</li>
-            </ol>
-            <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Common Walkie Talking use cases">
-              {useCaseChips.map((chip) => (
-                <span key={chip} className="rounded-full border border-tactical-green/15 bg-tactical-green/10 px-2.5 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-tactical-green/75">
-                  {chip}
-                </span>
-              ))}
+            <div className="flex items-center justify-between">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-tactical-green/80">How it works</p>
+              <button
+                type="button"
+                onClick={() => setHowItWorksOpen(!howItWorksOpen)}
+                className="sm:hidden touch-manipulation rounded-lg border border-white/10 bg-white/5 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-white/50 transition active:scale-95"
+              >
+                {howItWorksOpen ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            <div className={`${howItWorksOpen ? 'block' : 'hidden sm:block'}`}>
+              <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] leading-snug text-white/70 sm:text-[13px] sm:text-sm">
+                <li>1. Pick a channel code.</li>
+                <li>2. Share the invite link.</li>
+                <li>3. Hold Push-to-Talk to speak.</li>
+                <li>4. Release to listen.</li>
+              </ol>
+              <div className="mt-2 flex flex-wrap gap-1 sm:mt-3" aria-label="Common Walkie Talking use cases">
+                {useCaseChips.map((chip) => (
+                  <span key={chip} className="rounded-full border border-tactical-green/15 bg-tactical-green/10 px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-tactical-green/75 sm:px-2.5 sm:py-1 sm:text-[9px]">
+                    {chip}
+                  </span>
+                ))}
+              </div>
             </div>
           </section>
 
@@ -184,6 +203,14 @@ export function EntryScreen({
                   {callsign}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setUsername(generateRandomCallsign())}
+                disabled={isTuning}
+                className="touch-manipulation rounded-lg border border-tactical-amber/20 bg-tactical-amber/10 px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber transition hover:bg-tactical-amber/20 active:scale-95 disabled:opacity-30"
+              >
+                🎲 Random
+              </button>
             </div>
 
             <section className="rounded-[1.4rem] border border-tactical-green/20 bg-black/45 p-3">
@@ -239,11 +266,13 @@ export function EntryScreen({
               <p className={`mt-2 min-h-5 font-mono text-xs uppercase tracking-[0.12em] ${channelValidation.valid ? 'text-tactical-green/75' : 'text-tactical-amber'}`}>
                 {isRequestingMic
                   ? 'Requesting microphone access...'
-                  : ignoredInvalidInput
-                    ? 'Numbers only — letters and symbols are ignored.'
-                    : isTuning
-                      ? tuningStage || `Tuning virtual room ${channelInput}...`
-                      : channelValidation.message}
+                  : hasInvalidInviteParam
+                    ? 'Invalid invite link. Channels must be 3–6 digits.'
+                    : ignoredInvalidInput
+                      ? 'Numbers only — letters and symbols are ignored.'
+                      : isTuning
+                        ? tuningStage || `Tuning virtual room ${channelInput}...`
+                        : channelValidation.message}
               </p>
 
               <div className="mt-3 grid grid-cols-3 gap-2">
@@ -295,12 +324,28 @@ export function EntryScreen({
             <button
               type="submit"
               disabled={!channelValidation.valid || isTuning}
-              className="touch-manipulation w-full rounded-2xl border border-tactical-green/50 bg-tactical-green px-5 py-4 text-lg font-bold uppercase tracking-[0.22em] text-black shadow-signal transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none"
+              className="touch-manipulation w-full rounded-2xl border border-tactical-green/50 bg-tactical-green px-5 py-4 text-lg font-bold uppercase tracking-[0.22em] text-black shadow-signal transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none sm:py-4"
             >
               {isRequestingMic ? 'Requesting Mic...' : isTuning ? 'Tuning...' : 'Join Channel'}
             </button>
+          </form>
 
-            {favoriteChannels?.length ? (
+          <section className="mt-3 rounded-2xl border border-tactical-amber/25 bg-gradient-to-b from-tactical-amber/10 to-black/35 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.06)] sm:mt-4">
+            <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[0.2em] text-tactical-amber">
+              <Shield size={16} />
+              Microphone Permission
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-white/68">
+              Mic access is required. Your mic only transmits while Push-to-Talk is held.
+            </p>
+            <p className="hidden mt-2 text-sm leading-relaxed text-white/55 sm:block">
+              Your browser will ask for microphone access when you join. Your mic stays muted until you hold Push-to-Talk.
+            </p>
+          </section>
+
+          {error ? <p className="rounded-xl border border-tactical-red/30 bg-tactical-red/10 p-3 text-sm text-tactical-red">{error}</p> : null}
+
+          {favoriteChannels?.length ? (
               <section className="rounded-2xl border border-tactical-amber/15 bg-black/30 p-3">
                 <div className="mb-2 flex items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.18em]">
                   <span className="text-white/45">Favorite Channels</span>
@@ -366,30 +411,6 @@ export function EntryScreen({
                 </div>
               </section>
             ) : null}
-
-            {error ? <p className="rounded-xl border border-tactical-red/30 bg-tactical-red/10 p-3 text-sm text-tactical-red">{error}</p> : null}
-
-            <section className="rounded-2xl border border-tactical-amber/25 bg-gradient-to-b from-tactical-amber/10 to-black/35 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.06)]">
-              <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[0.2em] text-tactical-amber">
-                <Shield size={16} />
-                Microphone Permission
-              </div>
-              <p className="mt-2 text-sm leading-relaxed text-white/68">
-                Your browser will ask for microphone access when you join a channel. Your mic stays muted until you hold Push-to-Talk.
-              </p>
-              <p className="mt-2 rounded-xl border border-tactical-green/15 bg-tactical-green/10 px-3 py-2 text-sm leading-relaxed text-white/72">
-                Live browser audio. Your mic only transmits while Push-to-Talk is held.
-              </p>
-              <ul className="mt-3 space-y-1.5 font-mono text-[10px] uppercase leading-relaxed tracking-[0.12em] text-white/50">
-                <li>• Mic access is required for live voice.</li>
-                <li>• You are not transmitting while in LISTENING mode.</li>
-                <li>• Hold Push-to-Talk to speak.</li>
-                <li>• Release to return to listening.</li>
-                <li>• This is an internet room, not real radio frequency.</li>
-              </ul>
-            </section>
-
-          </form>
 
           <section className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3 text-center">
             <p className="text-sm leading-relaxed text-white/68">

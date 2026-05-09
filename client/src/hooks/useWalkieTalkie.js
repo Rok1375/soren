@@ -138,6 +138,8 @@ export function useWalkieTalkie() {
   const peersRef = useRef(new Map());
   const makingOfferRef = useRef(new Set());
   const busyTimeoutRef = useRef(null);
+  const channelStateRef = useRef(null);
+  const usersRef = useRef([]);
 
   const addEvent = useCallback((text, tone = 'green') => {
     const freshEvent = {
@@ -410,16 +412,18 @@ export function useWalkieTalkie() {
     });
 
     socket.on('channel:state', (state) => {
-      // Look for changes to report in activity
-      if (channelState) {
-        if (!channelState.locked && state.locked) addEvent('Channel locked by host', 'amber');
-        if (channelState.locked && !state.locked) addEvent('Channel unlocked by host', 'green');
-        if (channelState.hostSocketId !== state.hostSocketId) {
+      const previousState = channelStateRef.current;
+      if (previousState) {
+        if (!previousState.locked && state.locked) addEvent('Channel locked by host', 'amber');
+        if (previousState.locked && !state.locked) addEvent('Channel unlocked by host', 'green');
+        if (previousState.hostSocketId !== state.hostSocketId) {
           const newHost = state.users.find(u => u.socketId === state.hostSocketId);
           if (newHost) addEvent(`Host transferred to ${newHost.username}`, 'amber');
         }
       }
 
+      channelStateRef.current = state;
+      usersRef.current = state.users || [];
       setChannelState(state);
       setOnlineCount(state.onlineCount);
       setUsers(state.users || []);
@@ -441,7 +445,7 @@ export function useWalkieTalkie() {
     });
 
     socket.on('peer:left', ({ socketId: peerId }) => {
-      const leavingUser = users.find(u => u.socketId === peerId);
+      const leavingUser = usersRef.current.find(u => u.socketId === peerId);
       if (leavingUser) addEvent(`${leavingUser.username} left CP`, 'amber');
       closePeer(peerId);
     });
@@ -555,7 +559,9 @@ export function useWalkieTalkie() {
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
       safeRadioAudio(stopStatic);
     };
-  }, [callPeer, clearBusyAttempt, closePeer, getPeer]);
+    // Socket lifecycle is intentionally initialized once. Event handlers read volatile channel/user state from refs to avoid reconnecting media sockets on every room update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [callPeer, clearBusyAttempt, closePeer, getPeer, addEvent]);
 
   const joinChannel = useCallback(async ({ username, channelNumber: requestedChannel }) => {
     joinDebug('join started', { channelNumber: requestedChannel, username });
@@ -580,6 +586,8 @@ export function useWalkieTalkie() {
 
       setJoined(true);
       setChannelNumber(response.channelNumber);
+      channelStateRef.current = response.state || null;
+      usersRef.current = response.state.users || [];
       setChannelState(response.state || null);
       setOnlineCount(response.state.onlineCount);
       setUsers(response.state.users || []);
@@ -621,10 +629,12 @@ export function useWalkieTalkie() {
     setChannelNumber('');
     setOnlineCount(0);
     setUsers([]);
+    usersRef.current = [];
     setHostSocketId(null);
     setIsHost(false);
     setChannelLocked(false);
     setChannelLockError('');
+    channelStateRef.current = null;
     setChannelState(null);
     setTransmittingSocketId(null);
     setIsHolding(false);
@@ -695,6 +705,8 @@ export function useWalkieTalkie() {
       setChannelState(response.state);
       setHostSocketId(response.state.hostSocketId || null);
       setIsHost(response.state.hostSocketId === socketRef.current?.id);
+      channelStateRef.current = response.state;
+      usersRef.current = response.state.users || [];
       setChannelLocked(Boolean(response.state.locked));
     } else {
       setChannelLocked(Boolean(response.locked));
