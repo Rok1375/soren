@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { BatteryFull, Copy, Lock, LogOut, Mic, MicOff, RadioTower, Unlock, Users } from 'lucide-react';
+import { Copy, Lock, LogOut, Mic, MicOff, QrCode, RadioTower, Unlock, Users, X } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Waveform } from './Waveform';
-import { shareInviteLink } from '../lib/invite';
+import { createInviteLink, shareInviteLink } from '../lib/invite';
 
 const statusStyles = {
   OFFLINE: 'text-white/50 border-white/10 bg-white/5',
@@ -55,10 +56,12 @@ function getStatusTone(status) {
 
 export function WalkieInterface({ radio }) {
   const [inviteStatus, setInviteStatus] = useState('idle');
+  const [qrOpen, setQrOpen] = useState(false);
   const inviteTimerRef = useRef(null);
   const statusClass = statusStyles[radio.status] || statusStyles.OFFLINE;
   const waveformActive = radio.isTransmitting || radio.status === 'RECEIVING' || radio.status === 'CHANNEL BUSY';
   const isOnlyOperator = radio.joined && radio.onlineCount <= 1;
+  const inviteUrl = createInviteLink(radio.channelNumber);
 
   useEffect(() => () => {
     if (inviteTimerRef.current) window.clearTimeout(inviteTimerRef.current);
@@ -68,6 +71,21 @@ export function WalkieInterface({ radio }) {
     try {
       const result = await shareInviteLink(radio.channelNumber);
       setInviteStatus(result.method === 'cancelled' ? 'idle' : 'copied');
+    } catch {
+      setInviteStatus('error');
+    }
+
+    if (inviteTimerRef.current) window.clearTimeout(inviteTimerRef.current);
+    inviteTimerRef.current = window.setTimeout(() => {
+      setInviteStatus('idle');
+      inviteTimerRef.current = null;
+    }, 1800);
+  }
+
+  async function copyBareInviteLink() {
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setInviteStatus('copied');
     } catch {
       setInviteStatus('error');
     }
@@ -126,18 +144,28 @@ export function WalkieInterface({ radio }) {
         <section className="lcd-glass relative overflow-hidden rounded-[1.7rem] border border-tactical-green/25 bg-[#8dff6a]/10 p-4 shadow-signal">
           <div className="absolute inset-0 animate-scan bg-gradient-to-b from-transparent via-white/8 to-transparent" />
           <div className="absolute inset-x-0 top-1/2 h-px bg-tactical-green/25" />
-          <div className="relative mb-2 flex items-center justify-between gap-2">
+          <div className="relative mb-2 flex flex-wrap items-center justify-between gap-2">
             <div className="inline-flex rounded-full border border-tactical-green/20 bg-black/25 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-tactical-green/70">
               Internet room code — not RF
             </div>
-            <button
-              type="button"
-              onClick={copyInviteLink}
-              className="touch-manipulation rounded-full border border-white/10 bg-black/35 px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-white/65 transition active:scale-[0.98]"
-            >
-              <Copy className="mr-1 inline" size={12} />
-              {inviteStatus === 'copied' ? 'Invite copied — send it to a friend to start talking.' : inviteStatus === 'error' ? 'Copy failed' : 'Share Channel'}
-            </button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={copyInviteLink}
+                className="touch-manipulation rounded-full border border-white/10 bg-black/35 px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-white/65 transition active:scale-[0.98]"
+              >
+                <Copy className="mr-1 inline" size={12} />
+                {inviteStatus === 'copied' ? 'Invite copied — send it to a friend to start talking.' : inviteStatus === 'error' ? 'Copy failed' : 'Share Channel'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setQrOpen(true)}
+                className="touch-manipulation rounded-full border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber transition active:scale-[0.98]"
+              >
+                <QrCode className="mr-1 inline" size={12} />
+                Show QR
+              </button>
+            </div>
           </div>
           <div className="relative flex items-end justify-between gap-3">
             <div>
@@ -156,7 +184,7 @@ export function WalkieInterface({ radio }) {
         <section className="mt-3 grid grid-cols-3 gap-2">
           <MeterCard label="STATUS" tone={getStatusTone(radio.status)}>{radio.status}</MeterCard>
           <MeterCard label="USERS"><Users className="mr-1 inline" size={14} />{radio.onlineCount}</MeterCard>
-          <MeterCard label="BATTERY"><BatteryFull className="mr-1 inline" size={14} />98%</MeterCard>
+          <MeterCard label="MIC" tone={radio.micStatus === 'blocked' ? 'red' : radio.micStatus === 'requesting' ? 'amber' : 'green'}>{radio.micStatus}</MeterCard>
         </section>
 
         <section className={`mt-3 rounded-2xl border p-3 ${radio.channelLocked ? 'border-tactical-amber/25 bg-tactical-amber/10' : 'border-tactical-green/20 bg-tactical-green/10'}`}>
@@ -178,10 +206,10 @@ export function WalkieInterface({ radio }) {
               </button>
             ) : null}
           </div>
-          <p className="mt-2 font-mono text-[9px] uppercase leading-relaxed tracking-[0.12em] text-white/40">
+          <p className="mt-2 text-xs leading-relaxed text-white/50">
             Locking prevents new people from joining. Current users stay connected.
           </p>
-          <p className="mt-1 font-mono text-[9px] uppercase leading-relaxed tracking-[0.12em] text-white/40">
+          <p className="mt-1 text-xs leading-relaxed text-white/45">
             Recommended MVP group size: up to 8 users for best peer-to-peer audio performance.
           </p>
           {radio.channelLockError ? (
@@ -269,6 +297,42 @@ export function WalkieInterface({ radio }) {
             </button>
           </div>
         </section>
+
+        {qrOpen ? (
+          <section className="absolute inset-0 z-20 grid place-items-center rounded-[2.2rem] bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Channel QR invite">
+            <div className="w-full max-w-xs rounded-[1.6rem] border border-tactical-green/30 bg-[#071009] p-4 text-center shadow-2xl shadow-black">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="text-left">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/45">QR Invite</p>
+                  <p className="font-mono text-xl font-bold uppercase tracking-[0.16em] text-tactical-green">CH {radio.channelNumber}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQrOpen(false)}
+                  className="touch-manipulation rounded-full border border-white/10 bg-black/40 p-2 text-white/70 transition active:scale-[0.98]"
+                  aria-label="Close QR invite"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="mx-auto grid w-fit place-items-center rounded-2xl border border-tactical-green/25 bg-white p-3">
+                <QRCodeSVG value={inviteUrl} size={184} level="M" includeMargin={false} />
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-white/75">
+                Scan to join this internet voice room.
+              </p>
+              <p className="mt-2 break-all font-mono text-[10px] leading-relaxed text-white/40">{inviteUrl}</p>
+              <button
+                type="button"
+                onClick={copyBareInviteLink}
+                className="mt-4 touch-manipulation w-full rounded-xl border border-tactical-green/30 bg-tactical-green/10 px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.18em] text-tactical-green transition active:scale-[0.98]"
+              >
+                <Copy className="mr-2 inline" size={15} />
+                {inviteStatus === 'copied' ? 'Invite copied — send it to a friend to start talking.' : inviteStatus === 'error' ? 'Copy Failed' : 'Copy Link'}
+              </button>
+            </div>
+          </section>
+        ) : null}
       </section>
     </main>
   );

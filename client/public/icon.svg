@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Walkie Talking</title>
+  <desc id="desc">Dark tactical push-to-talk app icon with green channel signal.</desc>
+  <rect width="512" height="512" rx="112" fill="#030504"/>
+  <rect x="64" y="64" width="384" height="384" rx="84" fill="#101712" stroke="#7cff6b" stroke-width="10"/>
+  <path d="M155 146h202c23 0 42 19 42 42v136c0 23-19 42-42 42H155c-23 0-42-19-42-42V188c0-23 19-42 42-42Z" fill="#071009" stroke="#273a2b" stroke-width="8"/>
+  <path d="M180 210h152" stroke="#7cff6b" stroke-width="24" stroke-linecap="round"/>
+  <path d="M180 262h104" stroke="#7cff6b" stroke-width="24" stroke-linecap="round" opacity=".78"/>
+  <circle cx="344" cy="282" r="42" fill="#7cff6b"/>
+  <path d="M156 392h200" stroke="#ffb84d" stroke-width="16" stroke-linecap="round" opacity=".85"/>
+  <path d="M380 124v-32M420 152l24-24M132 152l-24-24" stroke="#7cff6b" stroke-width="16" stroke-linecap="round" opacity=".65"/>
+</svg>

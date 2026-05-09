@@ -80,11 +80,11 @@ export function EntryScreen({
   }
 
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-5 font-display text-white">
+    <main className="relative flex min-h-dvh items-center justify-center overflow-x-hidden px-3 py-4 font-display text-white sm:px-4 sm:py-5">
       <div className="noise-overlay absolute inset-0" />
       <div className="absolute -top-28 h-72 w-72 rounded-full bg-tactical-green/10 blur-3xl" />
-      <section className="relative w-full max-w-md rounded-[2rem] border border-tactical-edge bg-tactical-panel/90 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl">
-        <div className="rounded-[1.45rem] border border-white/10 bg-gradient-to-b from-white/8 to-black/40 p-4 shadow-insetPanel">
+      <section className="relative w-full max-w-md rounded-[2rem] border border-tactical-edge bg-tactical-panel/90 p-3 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-4">
+        <div className="rounded-[1.45rem] border border-white/10 bg-gradient-to-b from-white/8 to-black/40 p-3 shadow-insetPanel sm:p-4">
           <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="font-mono text-xs uppercase tracking-[0.35em] text-tactical-green/70">Digital Internet Radio</p>
@@ -106,7 +106,7 @@ export function EntryScreen({
 
           <section className="mb-3 rounded-2xl border border-white/10 bg-black/30 p-3">
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-tactical-green/80">How it works</p>
-            <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm leading-snug text-white/70">
+            <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[13px] leading-snug text-white/70 sm:text-sm">
               <li>1. Pick a channel code.</li>
               <li>2. Share the invite link.</li>
               <li>3. Hold Push-to-Talk to speak.</li>
@@ -123,14 +123,14 @@ export function EntryScreen({
 
           <form className="space-y-3" onSubmit={onJoin}>
             <label className="block">
-              <span className="mb-2 block font-mono text-xs uppercase tracking-[0.24em] text-white/50">Operator name</span>
+              <span className="mb-1.5 block font-mono text-xs uppercase tracking-[0.24em] text-white/50">Operator name</span>
               <input
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 placeholder="Soren"
                 maxLength={24}
                 disabled={isTuning}
-                className="w-full rounded-2xl border border-white/10 bg-black/50 px-4 py-4 font-mono text-lg outline-none ring-tactical-green/40 transition focus:border-tactical-green/60 focus:ring-4 disabled:opacity-60"
+                className="w-full rounded-2xl border border-white/10 bg-black/50 px-4 py-3.5 font-mono text-lg outline-none ring-tactical-green/40 transition focus:border-tactical-green/60 focus:ring-4 disabled:opacity-60"
               />
             </label>
 
@@ -172,7 +172,7 @@ export function EntryScreen({
                       pattern="[0-9]*"
                       placeholder="007"
                       disabled={isTuning}
-                      className="w-full bg-transparent text-right font-mono text-6xl font-bold leading-none tracking-[0.08em] text-tactical-green outline-none placeholder:text-tactical-green/20 disabled:opacity-80"
+                      className="w-full bg-transparent text-right font-mono text-5xl font-bold leading-none tracking-[0.08em] text-tactical-green outline-none placeholder:text-tactical-green/20 disabled:opacity-80 sm:text-6xl"
                     />
                     <span className="mb-1 h-12 w-1 animate-blink rounded-full bg-tactical-green shadow-signal" />
                   </div>
@@ -201,15 +201,15 @@ export function EntryScreen({
                     key={digit}
                     onClick={() => appendDigit(digit)}
                     disabled={isTuning || channelInput.length >= 6}
-                    className="touch-manipulation rounded-xl border border-white/10 bg-[#101712] py-3 font-mono text-2xl font-bold text-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,.08)] transition active:scale-95 disabled:opacity-35"
+                    className="touch-manipulation rounded-xl border border-white/10 bg-[#101712] py-2.5 font-mono text-2xl font-bold text-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,.08)] transition active:scale-95 disabled:opacity-35 sm:py-3"
                   >
                     {digit}
                   </button>
                 ))}
-                <button type="button" onClick={deleteDigit} disabled={isTuning || !channelInput} className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 py-3 font-mono font-bold text-tactical-amber transition active:scale-95 disabled:opacity-35">
+                <button type="button" onClick={deleteDigit} disabled={isTuning || !channelInput} className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 py-2.5 font-mono font-bold text-tactical-amber transition active:scale-95 disabled:opacity-35 sm:py-3">
                   <Delete className="mx-auto" size={22} />
                 </button>
-                <button type="button" onClick={randomizeChannel} disabled={isTuning} className="touch-manipulation col-span-2 rounded-xl border border-tactical-green/25 bg-tactical-green/10 py-3 font-mono text-sm font-bold uppercase tracking-[0.16em] text-tactical-green transition active:scale-95 disabled:opacity-35">
+                <button type="button" onClick={randomizeChannel} disabled={isTuning} className="touch-manipulation col-span-2 rounded-xl border border-tactical-green/25 bg-tactical-green/10 py-2.5 font-mono text-sm font-bold uppercase tracking-[0.16em] text-tactical-green transition active:scale-95 disabled:opacity-35 sm:py-3">
                   <Dice5 className="mr-2 inline" size={18} /> Random CH
                 </button>
               </div>
@@ -225,6 +225,14 @@ export function EntryScreen({
               </button>
             </section>
 
+            <button
+              type="submit"
+              disabled={!channelValidation.valid || isTuning}
+              className="touch-manipulation w-full rounded-2xl border border-tactical-green/50 bg-tactical-green px-5 py-4 text-lg font-bold uppercase tracking-[0.22em] text-black shadow-signal transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none"
+            >
+              {isRequestingMic ? 'Requesting Mic...' : isTuning ? 'Tuning...' : 'Join Channel'}
+            </button>
+
             {recentChannels?.length ? (
               <section className="rounded-2xl border border-white/10 bg-black/30 p-3">
                 <div className="mb-3 flex items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.18em]">
@@ -238,6 +246,9 @@ export function EntryScreen({
                     Clear
                   </button>
                 </div>
+                <p className="mb-3 text-xs leading-relaxed text-white/50">
+                  Local history on this device — not public room discovery. Pick a recent channel to fill the input. It will not auto-join.
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {recentChannels.map((channel) => (
                     <button
@@ -276,16 +287,18 @@ export function EntryScreen({
               </ul>
             </section>
 
-            <button
-              type="submit"
-              disabled={!channelValidation.valid || isTuning}
-              className="touch-manipulation w-full rounded-2xl border border-tactical-green/50 bg-tactical-green px-5 py-4 text-lg font-bold uppercase tracking-[0.22em] text-black shadow-signal transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none"
-            >
-              {isRequestingMic ? 'Requesting Mic...' : isTuning ? 'Tuning...' : 'Join Channel'}
-            </button>
           </form>
 
-          <p className="mt-4 text-center text-xs leading-relaxed text-white/45">
+          <section className="mt-3 rounded-2xl border border-white/10 bg-black/30 px-3 py-2.5 text-center">
+            <p className="text-sm leading-relaxed text-white/68">
+              Add Walkie Talking to your home screen for faster access to your channels.
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-white/45">
+              If your browser supports it, use its Add to Home Screen or Install option. You can keep using the app without installing.
+            </p>
+          </section>
+
+          <p className="mt-3 text-center text-xs leading-relaxed text-white/45">
             Virtual channel ID only — not RF. Users on the exact same string, like 007, share one code-based internet voice room.
           </p>
         </div>
