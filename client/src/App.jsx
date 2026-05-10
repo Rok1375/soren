@@ -1,27 +1,12 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { EntryScreen } from './components/EntryScreen';
 import { WalkieInterface } from './components/WalkieInterface';
 import { useWalkieTalkie } from './hooks/useWalkieTalkie';
 import { getChannelValidation, sanitizeChannelInput } from './lib/channels';
-import { clearRecentChannels, getRecentChannels, saveRecentChannel } from './lib/recentChannels';
-import { getFavoriteChannels, toggleFavoriteChannel, isChannelFavorite } from './lib/favoriteChannels';
-
+import { toggleFavoriteChannel, isChannelFavorite } from './lib/favoriteChannels';
 import { getChannelLabels, saveChannelLabel } from './lib/channelLabels';
 import { saveRoomVibe as saveRoomVibes, getAllRoomVibes } from './lib/roomVibes';
 import { incrementChannelsJoined } from './lib/localStats';
-
-const THEMES = [
-  { id: 'tactical-green', name: 'Tactical Green', class: '' },
-  { id: 'amber-lcd', name: 'Amber LCD', class: 'theme-amber' },
-  { id: 'cyber-blue', name: 'Cyber Blue', class: 'theme-blue' },
-  { id: 'emergency-red', name: 'Emergency Red', class: 'theme-red' },
-  { id: 'stealth-black', name: 'Stealth Black', class: 'theme-stealth' },
-  { id: 'retro-radio', name: 'Retro Radio', class: 'theme-retro' },
-];
-
-function getInitialTheme() {
-  return localStorage.getItem('walkieTalking.theme') || 'tactical-green';
-}
 
 const DEFAULT_CHANNEL = '272';
 
@@ -66,20 +51,8 @@ function getHasInvalidInviteParam() {
 
 export default function App() {
   const [username, setUsername] = useState(() => localStorage.getItem('walkieTalking.username') || '');
-  const [themeId, setThemeId] = useState(getInitialTheme);
-  const theme = useMemo(() => THEMES.find(t => t.id === themeId) || THEMES[0], [themeId]);
-
-  useEffect(() => {
-    localStorage.setItem('walkieTalking.theme', themeId);
-    document.body.className = theme.class;
-    // Update body background immediately
-    document.documentElement.className = theme.class;
-  }, [themeId, theme.class]);
-
   const [channelInput, setChannelInput] = useState(getInitialChannelInput);
   const [hasInvalidInviteParam, setHasInvalidInviteParam] = useState(getHasInvalidInviteParam);
-  const [recentChannels, setRecentChannels] = useState(getRecentChannels);
-  const [favoriteChannels, setFavoriteChannels] = useState(getFavoriteChannels);
   const [channelLabels, setChannelLabels] = useState(getChannelLabels);
   const [roomVibes, setRoomVibes] = useState(getAllRoomVibes);
   const [isTuning, setIsTuning] = useState(false);
@@ -101,16 +74,6 @@ export default function App() {
     if (hasInvalidInviteParam && sanitized !== channelInput) {
       setHasInvalidInviteParam(false);
     }
-  }
-
-  function handleRecentChannelSelect(channel) {
-    if (isTuning) return;
-    setChannelInput(channel);
-  }
-
-  function handleClearRecentChannels() {
-    if (isTuning) return;
-    setRecentChannels(clearRecentChannels());
   }
 
   async function handleJoin(event) {
@@ -137,7 +100,6 @@ export default function App() {
       
       setTuningStage('ROOM LINKED');
       
-      setRecentChannels(saveRecentChannel(channelInput));
       incrementChannelsJoined(channelInput);
     } catch (err) {
       console.error('[Join] error during tuning', err);
@@ -151,8 +113,7 @@ export default function App() {
   }
 
   function handleToggleFavorite(channel) {
-    const nextFavs = toggleFavoriteChannel(channel);
-    setFavoriteChannels(nextFavs);
+    toggleFavoriteChannel(channel);
   }
 
   function handleSetChannelLabel(channel, label) {
@@ -178,21 +139,10 @@ export default function App() {
         hasInvalidInviteParam={hasInvalidInviteParam}
         isTuning={isTuning}
         micStatus={radio.micStatus}
-        recentChannels={recentChannels}
-        favoriteChannels={favoriteChannels}
-        onRecentChannelSelect={handleRecentChannelSelect}
-        onClearRecentChannels={handleClearRecentChannels}
         onToggleFavorite={handleToggleFavorite}
         isFavorite={isChannelFavorite(channelInput)}
-        channelLabels={channelLabels}
-        onSetChannelLabel={handleSetChannelLabel}
-        roomVibes={roomVibes}
-        onSetRoomVibe={handleSetRoomVibe}
         tuningStage={tuningStage}
         joinStatus={radio.joinStatus}
-        themeId={themeId}
-        themes={THEMES}
-        onThemeChange={setThemeId}
       />
     );
   }

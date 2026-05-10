@@ -5,7 +5,6 @@ import { shareInviteLink } from '../lib/invite';
 
 const keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 const callsignPresets = ['Ghost', 'Raven', 'Echo', 'Nova', 'Agent 007', 'Static', 'Night Owl', 'Chaos'];
-const useCaseChips = ['Friends', 'Gaming', 'Events', 'Crews', 'Family', 'Fitness Teams'];
 const IGNORED_HELPER_MS = 1600;
 
 const randomCallsignPrefixes = ['Raven', 'Ghost', 'Echo', 'Nova', 'Static', 'Shadow', 'Viper', 'Phoenix'];
@@ -28,48 +27,11 @@ export function EntryScreen({
   tuningStage,
   joinStatus,
   micStatus,
-  recentChannels,
-  onRecentChannelSelect,
-  onClearRecentChannels,
-  favoriteChannels,
   onToggleFavorite,
   isFavorite,
-  channelLabels,
-  themeId,
-  themes,
-  onThemeChange,
 }) {
   const [ignoredInvalidInput, setIgnoredInvalidInput] = useState(false);
   const [inviteStatus, setInviteStatus] = useState('idle');
-  const [qaOpen, setQaOpen] = useState(false);
-  const [howItWorksOpen, setHowItWorksOpen] = useState(false);
-  const [qaChecks, setQaChecks] = useState(() => {
-    try {
-      const saved = localStorage.getItem('walkieTalking.qaChecks');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('walkieTalking.qaChecks', JSON.stringify(qaChecks));
-  }, [qaChecks]);
-
-  const toggleQaCheck = (id) => {
-    setQaChecks(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const qaItems = [
-    { id: 'health', label: 'Open backend health' },
-    { id: 'ch272', label: 'Join Channel 272' },
-    { id: 'ch007', label: 'Join Channel 007' },
-    { id: 'users2', label: 'Confirm USERS 2' },
-    { id: 'a2b', label: 'Test Alpha to Bravo audio' },
-    { id: 'b2a', label: 'Test Bravo to Alpha audio' },
-    { id: 'busy', label: 'Test CHANNEL BUSY' },
-    { id: 'lock', label: 'Test Lock Channel' },
-    { id: 'invite', label: 'Test Invite Link' },
-    { id: 'cellular', label: 'Test phone on cellular' },
-  ];
   const ignoredTimerRef = useRef(null);
   const inviteTimerRef = useRef(null);
   const channelCategory = getChannelCategory(channelInput);
@@ -150,34 +112,6 @@ export function EntryScreen({
             <div className="rounded-xl border border-white/10 bg-black/30 p-3"><Users className="mx-auto mb-1 text-tactical-green" size={18} />Rooms</div>
             <div className="rounded-xl border border-white/10 bg-black/30 p-3"><Shield className="mx-auto mb-1 text-tactical-green" size={18} />PTT Lock</div>
           </div>
-
-          <section className="mb-3 rounded-2xl border border-white/10 bg-black/30 p-3">
-            <div className="flex items-center justify-between">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-tactical-green/80">How it works</p>
-              <button
-                type="button"
-                onClick={() => setHowItWorksOpen(!howItWorksOpen)}
-                className="sm:hidden touch-manipulation rounded-lg border border-white/10 bg-white/5 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-white/50 transition active:scale-95"
-              >
-                {howItWorksOpen ? 'Hide' : 'Show'}
-              </button>
-            </div>
-            <div className={`${howItWorksOpen ? 'block' : 'hidden sm:block'}`}>
-              <ol className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] leading-snug text-white/70 sm:text-[13px] sm:text-sm">
-                <li>1. Pick a channel code.</li>
-                <li>2. Share the invite link.</li>
-                <li>3. Hold Push-to-Talk to speak.</li>
-                <li>4. Release to listen.</li>
-              </ol>
-              <div className="mt-2 flex flex-wrap gap-1 sm:mt-3" aria-label="Common Walkie Talking use cases">
-                {useCaseChips.map((chip) => (
-                  <span key={chip} className="rounded-full border border-tactical-green/15 bg-tactical-green/10 px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-tactical-green/75 sm:px-2.5 sm:py-1 sm:text-[9px]">
-                    {chip}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </section>
 
           <form className="space-y-3" onSubmit={onJoin}>
             <label className="block">
@@ -358,146 +292,7 @@ export function EntryScreen({
             </div>
           ) : null}
 
-          {favoriteChannels?.length ? (
-              <section className="rounded-2xl border border-tactical-amber/15 bg-black/30 p-3">
-                <div className="mb-2 flex items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.18em]">
-                  <span className="text-white/45">Favorite Channels</span>
-                  <Star size={12} className="text-tactical-amber/60" />
-                </div>
-                <p className="mb-3 text-[11px] leading-relaxed text-white/40">
-                  Favorite channels are saved on this device.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {favoriteChannels.map((channel) => (
-                    <div key={channel} className="flex overflow-hidden rounded-full border border-tactical-amber/20 bg-tactical-amber/5 transition-colors hover:bg-tactical-amber/10">
-                      <button
-                        type="button"
-                        onClick={() => onRecentChannelSelect(channel)}
-                        disabled={isTuning}
-                        className="px-3 py-2 font-mono text-xs font-bold uppercase tracking-[0.14em] text-tactical-amber transition active:scale-[0.98] disabled:opacity-35"
-                      >
-                        CH {channel} {channelLabels[channel] && <span className="opacity-50">— {channelLabels[channel]}</span>}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onToggleFavorite(channel)}
-                        disabled={isTuning}
-                        className="border-l border-tactical-amber/20 px-2 py-2 text-tactical-amber/40 transition hover:bg-tactical-amber/10 hover:text-tactical-amber active:scale-90"
-                        aria-label="Remove favorite"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : null}
 
-            {recentChannels?.length ? (
-              <section className="rounded-2xl border border-white/10 bg-black/30 p-3">
-                <div className="mb-3 flex items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.18em]">
-                  <span className="text-white/45">Recent Channels</span>
-                  <button
-                    type="button"
-                    onClick={onClearRecentChannels}
-                    disabled={isTuning}
-                    className="touch-manipulation rounded-full border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-1 font-bold text-tactical-amber/80 transition active:scale-[0.98] disabled:opacity-35"
-                  >
-                    Clear
-                  </button>
-                </div>
-                <p className="mb-3 text-xs leading-relaxed text-white/50">
-                  Local history on this device — not public room discovery. Pick a recent channel to fill the input. It will not auto-join.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {recentChannels.map((channel) => (
-                    <button
-                      type="button"
-                      key={channel}
-                      onClick={() => onRecentChannelSelect(channel)}
-                      disabled={isTuning}
-                      className="touch-manipulation rounded-full border border-tactical-green/20 bg-tactical-green/10 px-3 py-2 font-mono text-xs font-bold uppercase tracking-[0.14em] text-tactical-green transition active:scale-[0.98] disabled:opacity-35"
-                    >
-                      CH {channel} {channelLabels[channel] && <span className="opacity-50">— {channelLabels[channel]}</span>}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-          <section className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3 text-center">
-            <p className="text-sm leading-relaxed text-white/68">
-              Add Walkie Talking to your home screen for faster access to your channels.
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-white/45">
-              If your browser supports it, use its Add to Home Screen or Install option. You can keep using the app without installing.
-            </p>
-          </section>
-
-          <section className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">Radio Theme</div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {themes.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => onThemeChange(t.id)}
-                  className={`rounded-lg border px-2 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.1em] transition active:scale-95 ${
-                    themeId === t.id
-                      ? 'border-tactical-green bg-tactical-green/20 text-tactical-green shadow-signal'
-                      : 'border-white/10 bg-black/40 text-white/40 hover:border-white/20'
-                  }`}
-                >
-                  {t.name}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="mt-3">
-            <button
-              type="button"
-              onClick={() => setQaOpen(!qaOpen)}
-              className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-3 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 transition active:scale-[0.98]"
-            >
-              {qaOpen ? 'Hide QA Checklist' : 'Show QA Checklist'}
-            </button>
-            {qaOpen && (
-              <div className="mt-2 rounded-2xl border border-tactical-amber/20 bg-tactical-amber/5 p-3">
-                <p className="mb-3 text-[11px] leading-relaxed text-white/50">
-                  Testing on real devices? Use this checklist to verify audio and channel behavior.
-                </p>
-                <div className="grid grid-cols-1 gap-2">
-                  {qaItems.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => toggleQaCheck(item.id)}
-                      className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition active:scale-[0.98] ${
-                        qaChecks[item.id]
-                          ? 'border-tactical-green/30 bg-tactical-green/10 text-tactical-green'
-                          : 'border-white/5 bg-black/20 text-white/30'
-                      }`}
-                    >
-                      <div className={`h-3 w-3 rounded-sm border ${qaChecks[item.id] ? 'bg-tactical-green border-tactical-green' : 'border-white/20'}`} />
-                      <span className="font-mono text-[10px] uppercase tracking-wider">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setQaChecks({})}
-                  className="mt-4 w-full rounded-xl border border-white/5 bg-black/20 py-2 font-mono text-[9px] uppercase tracking-widest text-white/25 hover:text-white/40"
-                >
-                  Reset Checklist
-                </button>
-              </div>
-            )}
-          </section>
-
-          <p className="mt-3 text-center text-xs leading-relaxed text-white/45">
-            Virtual channel ID only — not RF. Users on the exact same string, like 007, share one code-based internet voice room.
-          </p>
         </div>
       </section>
     </main>

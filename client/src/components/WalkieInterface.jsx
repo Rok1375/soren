@@ -2,10 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Copy, Download, Lock, LogOut, Mic, MicOff, QrCode, RadioTower, Share2, Star, Unlock, Users, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toPng } from 'html-to-image';
-import { Waveform } from './Waveform';
+import { PremiumWaveform } from './PremiumWaveform';
 import { createInviteLink, shareInviteLink } from '../lib/invite';
 import { formatTimeAgo, getLocalStats, incrementTransmissions, resetLocalStats } from '../lib/localStats';
-
 const statusStyles = {
   OFFLINE: 'text-white/50 border-white/10 bg-white/5',
   LISTENING: 'text-tactical-green border-tactical-green/30 bg-tactical-green/10',
@@ -69,11 +68,15 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
   const inviteUrl = createInviteLink(radio.channelNumber);
   const isMeTransmitting = radio.isTransmitting;
   const prevTransmittingRef = useRef(false);
+  const [transmissionStartTime, setTransmissionStartTime] = useState(null);
   
   // Track transmissions
   useEffect(() => {
     if (isMeTransmitting && !prevTransmittingRef.current) {
       setStats(incrementTransmissions());
+      setTransmissionStartTime(Date.now());
+    } else if (!isMeTransmitting && prevTransmittingRef.current) {
+      setTransmissionStartTime(null);
     }
     prevTransmittingRef.current = isMeTransmitting;
   }, [isMeTransmitting]);
@@ -367,7 +370,12 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
         </section>
 
         <section className="mt-4 space-y-3">
-          <Waveform active={waveformActive} busy={radio.status === 'CHANNEL BUSY'} />
+          <PremiumWaveform 
+            active={waveformActive} 
+            busy={radio.status === 'CHANNEL BUSY'}
+            isTransmitting={radio.isTransmitting}
+            transmissionStartTime={transmissionStartTime}
+          />
           <div className="min-h-12 rounded-2xl border border-white/10 bg-black/30 p-3 text-center font-mono text-xs uppercase tracking-[0.18em] text-white/55">
             {radio.transmittingUser
               ? radio.status === 'CHANNEL BUSY'

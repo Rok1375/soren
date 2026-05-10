@@ -18,46 +18,6 @@
   --tactical-bg-glow: rgba(124, 255, 107, 0.13);
 }
 
-.theme-amber {
-  --tactical-primary: #ffbf47;
-  --tactical-primary-rgb: 255, 191, 71;
-  --tactical-accent: #ff4747;
-  --tactical-accent-rgb: 255, 71, 71;
-  --tactical-bg-glow: rgba(255, 191, 71, 0.13);
-}
-
-.theme-blue {
-  --tactical-primary: #47d1ff;
-  --tactical-primary-rgb: 71, 209, 255;
-  --tactical-accent: #7cff6b;
-  --tactical-accent-rgb: 124, 255, 107;
-  --tactical-bg-glow: rgba(71, 209, 255, 0.13);
-}
-
-.theme-red {
-  --tactical-primary: #ff4747;
-  --tactical-primary-rgb: 255, 71, 71;
-  --tactical-accent: #ffbf47;
-  --tactical-accent-rgb: 255, 191, 71;
-  --tactical-bg-glow: rgba(255, 71, 71, 0.13);
-}
-
-.theme-stealth {
-  --tactical-primary: #ffffff;
-  --tactical-primary-rgb: 255, 255, 255;
-  --tactical-accent: #7cff6b;
-  --tactical-accent-rgb: 124, 255, 107;
-  --tactical-bg-glow: rgba(255, 255, 255, 0.08);
-}
-
-.theme-retro {
-  --tactical-primary: #efdfbb;
-  --tactical-primary-rgb: 239, 223, 187;
-  --tactical-accent: #ffbf47;
-  --tactical-accent-rgb: 255, 191, 71;
-  --tactical-bg-glow: rgba(239, 223, 187, 0.1);
-}
-
 * {
   box-sizing: border-box;
 }
@@ -111,4 +71,82 @@ input {
   .ptt-button:hover {
     filter: brightness(1.08);
   }
+}
+
+/* Premium CRT Scanline Animation */
+@keyframes scanline {
+  0% {
+    top: 0%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.animate-scanline {
+  animation: scanline 3.5s ease-in-out infinite;
+}
+
+.animate-scan {
+  animation: scan 4s ease-in-out infinite;
+}
+
+/* Audio waveform bar animation */
+@keyframes waveform {
+  0%, 100% {
+    transform: scaleY(0.5);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* Enhanced glow effects */
+.shadow-signal-enhanced {
+  box-shadow: 
+    0 0 8px rgba(var(--tactical-primary-rgb), 0.6),
+    0 0 16px rgba(var(--tactical-primary-rgb), 0.4),
+    0 0 24px rgba(var(--tactical-primary-rgb), 0.2);
+}
+
+/* CRT flicker effect */
+@keyframes crt-flicker {
+  0%, 100% {
+    opacity: 0.95;
+  }
+  3% {
+    opacity: 0.88;
+  }
+  6% {
+    opacity: 0.96;
+  }
+  10% {
+    opacity: 0.92;
+  }
+  93% {
+    opacity: 0.97;
+  }
+}
+
+.crt-flicker {
+  animation: crt-flicker 2s ease-in-out infinite;
 }
