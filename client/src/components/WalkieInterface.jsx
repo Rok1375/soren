@@ -4,7 +4,6 @@ import { QRCodeSVG } from 'qrcode.react';
 import { toPng } from 'html-to-image';
 import { PremiumWaveform } from './PremiumWaveform';
 import { createInviteLink, shareInviteLink } from '../lib/invite';
-import { formatTimeAgo, getLocalStats, incrementTransmissions, resetLocalStats } from '../lib/localStats';
 const statusStyles = {
   OFFLINE: 'text-white/50 border-white/10 bg-white/5',
   LISTENING: 'text-tactical-green border-tactical-green/30 bg-tactical-green/10',
@@ -48,37 +47,16 @@ function getStatusTone(status) {
   return 'primary';
 }
 
-export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLabels, onSetChannelLabel, roomVibes, onSetRoomVibe }) {
+export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLabels, roomVibes }) {
   const [inviteStatus, setInviteStatus] = useState('idle');
   const [qrOpen, setQrOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
-  const [stats, setStats] = useState(() => getLocalStats());
   const cardRef = useRef(null);
   const inviteTimerRef = useRef(null);
   const statusClass = statusStyles[radio.status] || statusStyles.OFFLINE;
   const waveformActive = radio.isTransmitting || radio.status === 'RECEIVING' || radio.status === 'CHANNEL BUSY';
-  const isOnlyOperator = radio.joined && radio.onlineCount <= 1;
   const inviteUrl = createInviteLink(radio.channelNumber);
   const isMeTransmitting = radio.isTransmitting;
-  const prevTransmittingRef = useRef(false);
-  const [transmissionStartTime, setTransmissionStartTime] = useState(null);
-  
-  // Track transmissions
-  useEffect(() => {
-    if (isMeTransmitting && !prevTransmittingRef.current) {
-      setStats(incrementTransmissions());
-      setTransmissionStartTime(Date.now());
-    } else if (!isMeTransmitting && prevTransmittingRef.current) {
-      setTransmissionStartTime(null);
-    }
-    prevTransmittingRef.current = isMeTransmitting;
-  }, [isMeTransmitting]);
-
-  useEffect(() => {
-    if (radio.joined) {
-      setStats(getLocalStats());
-    }
-  }, [radio.joined, radio.channelNumber]);
 
   const connectionBadges = [];
   if (radio.joined) {
@@ -423,7 +401,6 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
             active={waveformActive} 
             busy={radio.status === 'CHANNEL BUSY'}
             isTransmitting={radio.isTransmitting}
-            transmissionStartTime={transmissionStartTime}
           />
           <div className={`min-h-12 rounded-2xl border p-3 text-center font-mono text-xs uppercase tracking-[0.18em] transition-colors duration-300 ${isMeTransmitting ? 'border-tactical-green/40 bg-tactical-green/15 text-tactical-green/80 edge-glow' : radio.status === 'CHANNEL BUSY' ? 'border-tactical-red/30 bg-tactical-red/10 text-tactical-red/70' : 'border-white/10 bg-black/30 text-white/55'}`}>
             {radio.transmittingUser
@@ -472,223 +449,49 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
           })}
         </section>
 
-        <div className="hardware-groove mt-3 mb-2" />
-
-        <section className="rounded-2xl border border-white/10 bg-black/30 overflow-hidden panel-bezel">
-          <div className="bg-white/5 px-3 py-2 flex items-center justify-between border-b border-white/5">
-            <div className="flex items-center gap-2">
-              <span className={`status-led ${radio.events.length > 0 ? 'green blink' : 'off'}`} />
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">Channel Activity</span>
-            </div>
-          </div>
-          <div className="max-h-32 overflow-y-auto p-2 space-y-1.5 font-mono text-[10px] tracking-tight">
-            {radio.events.length > 0 ? (
-              radio.events.map((event) => (
-                <div key={event.id} className="flex gap-2 leading-tight">
-                  <span className="text-white/25 shrink-0">{event.timestamp.split(':')[1]}:{event.timestamp.split(':')[2].split(' ')[0]}</span>
-                  <span className={`
-                    ${event.tone === 'amber' ? 'text-tactical-amber' : 
-                      event.tone === 'red' ? 'text-tactical-red' : 'text-tactical-green/80'}
-                  `}>
-                    {event.text}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div className="text-white/20 text-center py-2 italic font-sans uppercase tracking-widest text-[9px]">
-                Waiting for signal...
-              </div>
-            )}
-          </div>
-        </section>
-
-        <div className="hardware-groove mt-3 mb-2" />
-
         <section className="rounded-2xl border border-white/10 bg-black/30 p-3 panel-bezel">
-          <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
-            <div className="flex items-center gap-2">
-              <span className="status-led green" />
-              <span>Operator Console</span>
-            </div>
-            <span className="text-white/25">Device Only</span>
+          <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
+            <span>Room Tools</span>
+            <span className="text-white/25">Compact</span>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-xl border border-white/10 bg-black/35 p-3">
-              <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
-                <span>Room Tools</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={copyInviteLink}
-                  className="touch-manipulation rounded-xl border border-white/10 bg-black/35 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-white/65 transition active:scale-[0.98]"
-                >
-                  <Copy className="mr-1 inline" size={14} />
-                  Copy Link
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setQrOpen(true)}
-                  className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber transition active:scale-[0.98]"
-                >
-                  <QrCode className="mr-1 inline" size={14} />
-                  Show QR
-                </button>
-                <button
-                  type="button"
-                  onClick={onToggleFavorite}
-                  className={`touch-manipulation rounded-xl border px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition active:scale-[0.98] ${
-                    isFavorite
-                      ? 'border-tactical-amber/30 bg-tactical-amber/10 text-tactical-amber'
-                      : 'border-white/10 bg-white/5 text-white/40'
-                  }`}
-                >
-                  <Star className={`mr-1 inline ${isFavorite ? 'fill-current' : ''}`} size={14} />
-                  {isFavorite ? 'Saved' : 'Save'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCardOpen(true)}
-                  className="touch-manipulation rounded-xl border border-tactical-green/20 bg-tactical-green/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-green transition active:scale-[0.98]"
-                >
-                  <Share2 className="mr-1 inline" size={14} />
-                  Signal Card
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-black/35 p-3">
-              <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
-                <span>Local Identity</span>
-                <span className="text-white/25">Device Only</span>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="mb-2 text-[10px] leading-relaxed text-white/40">Channel labels stay on this device.</p>
-                  <input
-                    type="text"
-                    placeholder="e.g. Gaming Crew"
-                    maxLength={24}
-                    value={channelLabels[radio.channelNumber] || ''}
-                    onChange={(e) => onSetChannelLabel(radio.channelNumber, e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-black/50 px-3 py-2 font-mono text-sm outline-none transition focus:border-tactical-green/40"
-                  />
-                </div>
-                <div>
-                  <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
-                    <span>Room Vibe</span>
-                    <span className="text-white/25">Local Only</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {['Gaming', 'Chilling', 'Event Crew', 'Secret Channel', 'Squad Chat', 'Emergency Mode'].map((vibe) => (
-                      <button
-                        key={vibe}
-                        type="button"
-                        onClick={() => onSetRoomVibe(radio.channelNumber, roomVibes?.[radio.channelNumber] === vibe ? '' : vibe)}
-                        className={`touch-manipulation rounded-full border px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition active:scale-[0.98] ${
-                          roomVibes?.[radio.channelNumber] === vibe
-                            ? 'border-tactical-amber/30 bg-tactical-amber/10 text-tactical-amber shadow-[0_0_10px_rgba(245,158,11,.15)]'
-                            : 'border-white/10 bg-white/5 text-white/40 hover:border-white/20'
-                        }`}
-                      >
-                        {vibe}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-black/35 p-3">
-              <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
-                <span>Keyboard Shortcuts</span>
-                <span className="text-white/25">Power User</span>
-              </div>
-              <div className="flex flex-wrap gap-2 text-[9px] font-mono uppercase tracking-[0.14em] text-white/55">
-                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">Space PTT</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">⌘/Ctrl+⇧+C Copy</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">⌘/Ctrl+⇧+Q QR</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">⌘/Ctrl+⇧+F Save</span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">Esc Close</span>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-black/35 p-3 panel-bezel">
-              <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
-                <span>Local Stats</span>
-                <span className="text-white/25">Device Only</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-center">
-                <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-                  <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Joined</p>
-                  <span className="lcd-digit inline-block mt-1 h-8 w-10 text-lg font-bold text-tactical-green">{String(stats.channelsJoined || 0).padStart(1, '0')}</span>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-                  <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">TX Today</p>
-                  <span className="lcd-digit inline-block mt-1 h-8 w-10 text-lg font-bold text-tactical-green">{String(stats.transmissionsToday || 0).padStart(1, '0')}</span>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-                  <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Favorite</p>
-                  <p className="font-mono text-[15px] font-bold text-tactical-amber">CH {stats.favoriteChannel || '—'}</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-                  <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Last Signal</p>
-                  <p className="font-mono text-[10px] font-bold text-white/60">
-                    {formatTimeAgo(stats.lastSignal)}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-2 text-[10px] leading-relaxed text-white/40">
-                Stats are saved locally on this device.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Reset all local stats? This cannot be undone.')) {
-                    setStats(resetLocalStats());
-                  }
-                }}
-                className="mt-2 touch-manipulation rounded-lg border border-tactical-red/20 bg-tactical-red/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-red transition active:scale-95"
-              >
-                Reset Stats
-              </button>
-            </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <button
+              type="button"
+              onClick={copyInviteLink}
+              className="touch-manipulation rounded-xl border border-white/10 bg-black/35 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-white/65 transition active:scale-[0.98]"
+            >
+              <Copy className="mr-1 inline" size={14} /> Copy Link
+            </button>
+            <button
+              type="button"
+              onClick={() => setQrOpen(true)}
+              className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber transition active:scale-[0.98]"
+            >
+              <QrCode className="mr-1 inline" size={14} /> QR
+            </button>
+            <button
+              type="button"
+              onClick={() => setCardOpen(true)}
+              className="touch-manipulation rounded-xl border border-tactical-green/20 bg-tactical-green/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-green transition active:scale-[0.98]"
+            >
+              <Share2 className="mr-1 inline" size={14} /> Card
+            </button>
+            <button
+              type="button"
+              onClick={onToggleFavorite}
+              className={`touch-manipulation rounded-xl border px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition active:scale-[0.98] ${
+                isFavorite
+                  ? 'border-tactical-amber/30 bg-tactical-amber/10 text-tactical-amber'
+                  : 'border-white/10 bg-white/5 text-white/40'
+              }`}
+            >
+              <Star className={`mr-1 inline ${isFavorite ? 'fill-current' : ''}`} size={14} />
+              {isFavorite ? 'Saved' : 'Save'}
+            </button>
           </div>
         </section>
 
-        {isOnlyOperator ? (
-          <section className="mt-3 rounded-2xl border border-tactical-green/20 bg-tactical-green/10 p-3 text-center panel-bezel">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="status-led green" />
-              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-tactical-green/60">Awaiting Second Operator</span>
-            </div>
-            <p className="font-mono text-xs uppercase leading-relaxed tracking-[0.14em] text-tactical-green/75">
-              You&apos;re live on CH {radio.channelNumber}. Send the signal — first friend to join can talk instantly.
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={copyInviteLink}
-                className="touch-manipulation rounded-xl border border-white/10 bg-black/35 px-3 py-3 font-mono text-xs font-bold uppercase tracking-[0.12em] text-white/75 transition active:scale-[0.98]"
-              >
-                <Copy className="mx-auto" size={15} />
-                Share
-              </button>
-              <button
-                type="button"
-                onClick={() => setQrOpen(true)}
-                className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-3 font-mono text-xs font-bold uppercase tracking-[0.12em] text-tactical-amber transition active:scale-[0.98]"
-              >
-                <QrCode className="mx-auto" size={15} />
-                QR
-              </button>
-            </div>
-          </section>
-        ) : null}
-
-        <div className="flex-1" />
-
-        <div className="hardware-groove mb-3" />
+        <div className="hardware-groove mt-3 mb-2" />
 
         {radio.error ? <p className="mb-3 rounded-xl border border-tactical-red/30 bg-tactical-red/10 p-3 text-center text-sm text-tactical-red">{radio.error}</p> : null}
 
@@ -737,19 +540,6 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
             </button>
           </div>
         </section>
-
-        {/* Safe exit button - always visible if joined but something goes wrong */}
-        {radio.joined && (
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={radio.leaveChannel}
-              className="touch-manipulation rounded-xl border border-white/10 bg-white/5 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white/60 transition active:scale-[0.98]"
-            >
-              Leave Room
-            </button>
-          </div>
-        )}
 
         {qrOpen ? (
           <section className="absolute inset-0 z-20 grid place-items-center rounded-[2.2rem] bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Channel QR invite">

@@ -153,7 +153,6 @@ export function useWalkieTalkie() {
   const [channelLocked, setChannelLocked] = useState(false);
   const [channelLockError, setChannelLockError] = useState('');
   const [channelState, setChannelState] = useState(null);
-  const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
   const [joinStatus, setJoinStatus] = useState('');
 
@@ -166,16 +165,6 @@ export function useWalkieTalkie() {
   const busyTimeoutRef = useRef(null);
   const channelStateRef = useRef(null);
   const usersRef = useRef([]);
-
-  const addEvent = useCallback((text, tone = 'green') => {
-    const freshEvent = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      text,
-      tone,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    };
-    setEvents((prev) => [freshEvent, ...prev].slice(0, 10));
-  }, []);
 
   const status = getStatus({ joined, transmittingSocketId, mySocketId: socketId, isHolding, attemptedWhileBusy });
   const isTransmitting = transmittingSocketId === socketId;
@@ -439,16 +428,6 @@ export function useWalkieTalkie() {
     });
 
     socket.on('channel:state', (state) => {
-      const previousState = channelStateRef.current;
-      if (previousState) {
-        if (!previousState.locked && state.locked) addEvent('Channel locked by host', 'amber');
-        if (previousState.locked && !state.locked) addEvent('Channel unlocked by host', 'green');
-        if (previousState.hostSocketId !== state.hostSocketId) {
-          const newHost = state.users.find(u => u.socketId === state.hostSocketId);
-          if (newHost) addEvent(`Host transferred to ${newHost.username}`, 'amber');
-        }
-      }
-
       channelStateRef.current = state;
       usersRef.current = state.users || [];
       setChannelState(state);
@@ -462,8 +441,7 @@ export function useWalkieTalkie() {
       if (!state.transmittingSocketId) clearBusyAttempt();
     });
 
-    socket.on('peer:joined', ({ socketId: peerId, username }) => {
-      addEvent(`${username || 'Someone'} joined CP`, 'green');
+    socket.on('peer:joined', ({ socketId: peerId }) => {
       webrtcDebug('remote peer socket id', { localSocketId: socket.id, peerId, source: 'peer:joined' });
       webrtcDebug('existing peer waiting for joining peer offer to avoid offer glare', {
         localSocketId: socket.id,
@@ -472,8 +450,6 @@ export function useWalkieTalkie() {
     });
 
     socket.on('peer:left', ({ socketId: peerId }) => {
-      const leavingUser = usersRef.current.find(u => u.socketId === peerId);
-      if (leavingUser) addEvent(`${leavingUser.username} left CP`, 'amber');
       closePeer(peerId);
     });
 
@@ -534,8 +510,7 @@ export function useWalkieTalkie() {
       if (candidate) await pc.addIceCandidate(candidate);
     });
 
-    socket.on('ptt:started', ({ socketId: speakerId, username }) => {
-      if (speakerId !== socket.id) addEvent(`${username || 'Operator'} transmitting`, 'green');
+    socket.on('ptt:started', ({ socketId: speakerId }) => {
       setTransmittingSocketId(speakerId);
       safeRadioAudio(playStartBeep);
       if (speakerId !== socket.id) safeRadioAudio(startStatic);
@@ -588,7 +563,7 @@ export function useWalkieTalkie() {
     };
     // Socket lifecycle is intentionally initialized once. Event handlers read volatile channel/user state from refs to avoid reconnecting media sockets on every room update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [callPeer, clearBusyAttempt, closePeer, getPeer, addEvent]);
+  }, [callPeer, clearBusyAttempt, closePeer, getPeer]);
 
   const joinChannel = useCallback(async ({ username, channelNumber: requestedChannel }) => {
     joinDebug('join started', { channelNumber: requestedChannel, username });
@@ -785,7 +760,6 @@ export function useWalkieTalkie() {
     isHolding,
     isTransmitting,
     transmittingUser: users.find((user) => user.socketId === transmittingSocketId) || null,
-    events,
     error,
     joinStatus,
     joinChannel,
