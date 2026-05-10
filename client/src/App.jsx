@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState, useCallback } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { EntryScreen } from './components/EntryScreen';
 import { WalkieInterface } from './components/WalkieInterface';
 import { useWalkieTalkie } from './hooks/useWalkieTalkie';
@@ -132,34 +133,38 @@ export default function App() {
 
   if (!radio.joined) {
     return (
-      <EntryScreen
-        username={username}
-        setUsername={setUsername}
-        channelInput={channelInput}
-        setChannelInput={updateChannelInput}
-        onJoin={handleJoin}
-        error={radio.error}
-        channelValidation={channelValidation}
-        hasInvalidInviteParam={hasInvalidInviteParam}
-        isTuning={isTuning}
-        micStatus={radio.micStatus}
-        onToggleFavorite={handleToggleFavorite}
-        isFavorite={isChannelFavorite(channelInput)}
-        tuningStage={tuningStage}
-        joinStatus={radio.joinStatus}
-      />
+      <ErrorBoundary>
+        <EntryScreen
+          username={username}
+          setUsername={setUsername}
+          channelInput={channelInput}
+          setChannelInput={updateChannelInput}
+          onJoin={handleJoin}
+          error={radio.error}
+          channelValidation={channelValidation}
+          hasInvalidInviteParam={hasInvalidInviteParam}
+          isTuning={isTuning}
+          micStatus={radio.micStatus}
+          onToggleFavorite={handleToggleFavorite}
+          isFavorite={isChannelFavorite(channelInput)}
+          tuningStage={tuningStage}
+          joinStatus={radio.joinStatus}
+        />
+      </ErrorBoundary>
     );
   }
 
   return (
+    <ErrorBoundary>
       <WalkieInterface 
-      radio={radio} 
-      isFavorite={isChannelFavorite(radio.channelNumber)}
-      onToggleFavorite={handleToggleCurrentFavorite}
-      channelLabels={channelLabels}
-      onSetChannelLabel={handleSetChannelLabel}
-      roomVibes={roomVibes}
-      onSetRoomVibe={handleSetRoomVibe}
-    />
+        radio={radio} 
+        isFavorite={isChannelFavorite(radio.channelNumber)}
+        onToggleFavorite={handleToggleCurrentFavorite}
+        channelLabels={channelLabels}
+        onSetChannelLabel={handleSetChannelLabel}
+        roomVibes={roomVibes}
+        onSetRoomVibe={handleSetRoomVibe}
+      />
+    </ErrorBoundary>
   );
 }

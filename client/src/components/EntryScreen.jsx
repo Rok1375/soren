@@ -89,7 +89,7 @@ export function EntryScreen({
   }
 
   return (
-    <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-x-hidden px-3 py-4 font-display text-white sm:px-4 sm:py-5">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-x-hidden px-3 py-4 font-display text-white sm:px-4 sm:py-5 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
       <div className="noise-overlay absolute inset-0" />
       <div className="absolute -top-28 h-72 w-72 rounded-full bg-tactical-green/10 blur-3xl" />
       <section className="relative w-full max-w-md rounded-[2rem] border border-tactical-edge bg-tactical-panel/90 p-3 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-4">
@@ -134,6 +134,7 @@ export function EntryScreen({
                   onClick={() => setUsername(callsign)}
                   disabled={isTuning}
                   className="touch-manipulation rounded-lg border border-white/5 bg-white/5 px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-white/40 transition hover:border-tactical-green/30 hover:bg-tactical-green/5 hover:text-tactical-green active:scale-95 disabled:opacity-30"
+                  aria-label={`Use callsign ${callsign}`}
                 >
                   {callsign}
                 </button>
@@ -143,6 +144,7 @@ export function EntryScreen({
                 onClick={() => setUsername(generateRandomCallsign())}
                 disabled={isTuning}
                 className="touch-manipulation rounded-lg border border-tactical-amber/20 bg-tactical-amber/10 px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber transition hover:bg-tactical-amber/20 active:scale-95 disabled:opacity-30"
+                aria-label="Generate random callsign"
               >
                 🎲 Random
               </button>
@@ -218,14 +220,15 @@ export function EntryScreen({
                     onClick={() => appendDigit(digit)}
                     disabled={isTuning || channelInput.length >= 6}
                     className="touch-manipulation rounded-xl border border-white/10 bg-[#101712] py-2.5 font-mono text-2xl font-bold text-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,.08)] transition active:scale-95 disabled:opacity-35 sm:py-3"
+                    aria-label={`Add digit ${digit}`}
                   >
                     {digit}
                   </button>
                 ))}
-                <button type="button" onClick={deleteDigit} disabled={isTuning || !channelInput} className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 py-2.5 font-mono font-bold text-tactical-amber transition active:scale-95 disabled:opacity-35 sm:py-3">
+                <button type="button" onClick={deleteDigit} disabled={isTuning || !channelInput} className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 py-2.5 font-mono font-bold text-tactical-amber transition active:scale-95 disabled:opacity-35 sm:py-3" aria-label="Delete last digit">
                   <Delete className="mx-auto" size={22} />
                 </button>
-                <button type="button" onClick={randomizeChannel} disabled={isTuning} className="touch-manipulation col-span-2 rounded-xl border border-tactical-green/25 bg-tactical-green/10 py-2.5 font-mono text-sm font-bold uppercase tracking-[0.16em] text-tactical-green transition active:scale-95 disabled:opacity-35 sm:py-3">
+                <button type="button" onClick={randomizeChannel} disabled={isTuning} className="touch-manipulation col-span-2 rounded-xl border border-tactical-green/25 bg-tactical-green/10 py-2.5 font-mono text-sm font-bold uppercase tracking-[0.16em] text-tactical-green transition active:scale-95 disabled:opacity-35 sm:py-3" aria-label="Generate random channel">
                   <Dice5 className="mr-2 inline" size={18} /> Random CH
                 </button>
               </div>
@@ -235,6 +238,7 @@ export function EntryScreen({
                 onClick={copyInviteLink}
                 disabled={!channelValidation.valid || isTuning}
                 className="mt-3 touch-manipulation w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 font-mono text-xs font-bold uppercase tracking-[0.18em] text-white/70 transition active:scale-[0.98] disabled:opacity-35"
+                aria-label="Copy invite link to share with others"
               >
                 <Copy className="mr-2 inline" size={15} />
                 {inviteStatus === 'copied' ? 'Invite copied — send it to a friend to start talking.' : inviteStatus === 'error' ? 'Copy Failed' : 'Copy Invite Link'}
@@ -249,6 +253,7 @@ export function EntryScreen({
                       ? 'border-tactical-amber/30 bg-tactical-amber/10 text-tactical-amber' 
                       : 'border-white/5 bg-white/5 text-white/40 hover:bg-white/10'
                   }`}
+                  aria-label={isFavorite ? 'Remove from favorites' : 'Save to favorites'}
                 >
                   <Star className={`mr-2 inline ${isFavorite ? 'fill-current' : ''}`} size={14} />
                   {isFavorite ? 'Saved to Favorites' : 'Save as Favorite'}
@@ -260,6 +265,7 @@ export function EntryScreen({
               type="submit"
               disabled={!channelValidation.valid || isTuning}
               className="touch-manipulation w-full rounded-2xl border border-tactical-green/50 bg-tactical-green px-5 py-4 text-lg font-bold uppercase tracking-[0.22em] text-black shadow-signal transition active:scale-[0.98] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none sm:py-4"
+              aria-label={isRequestingMic ? 'Requesting microphone access' : isTuning ? 'Joining channel' : 'Join channel'}
             >
               {isRequestingMic ? 'Requesting Mic...' : isTuning ? 'Tuning...' : 'Join Channel'}
             </button>

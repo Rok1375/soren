@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import http from 'node:http';
 import { Server } from 'socket.io';
+import rateLimit from 'express-rate-limit';
 
 const PORT = Number(process.env.PORT || 3001);
 const DEFAULT_CLIENT_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
@@ -10,6 +11,12 @@ const CLIENT_ORIGINS = (process.env.CLIENT_ORIGIN || DEFAULT_CLIENT_ORIGINS.join
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+// Rate limit configuration
+const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60000); // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = Number(process.env.RATE_LIMIT_MAX_REQUESTS || 100); // 100 requests per minute
+const RATE_LIMIT_MAX_SOCKET_CONNECTIONS_PER_IP = Number(process.env.RATE_LIMIT_MAX_SOCKET_CONNECTIONS_PER_IP || 10); // 10 sockets per IP
+const SOCKET_JOIN_RATE_LIMIT = Number(process.env.SOCKET_JOIN_RATE_LIMIT || 30); // 30 channel joins per minute
 
 function isAllowedOrigin(origin) {
   // Allow server-to-server health checks, curl, and platform probes without a browser Origin header.
@@ -28,15 +35,132 @@ const corsOptions = {
   credentials: true,
 };
 
+// Rate limiter middleware for HTTP endpoints
+const limiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  keyGenerator: (req) => {
+    // Use X-Forwarded-For if behind a proxy, otherwise use IP
+    // express-rate-limit will handle IPv6 normalization via ipKeyGenerator
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      const [ip] = forwarded.split(',');
+      return ip.trim();
+    }
+    // Return req.ip which handles both IPv4 and IPv6 correctly
+    return req.ip;
+  },
+  message: {
+    ok: false,
+    error: 'Too many requests, please try again later.',
+  },
+  handler: (req, res, _next, options) => {
+    console.log(`[Rate Limit] HTTP rate limit exceeded for ${req.ip}`, {
+      method: req.method,
+      path: req.path,
+    });
+    res.status(429).json(options.message);
+  },
+});
+
 const app = express();
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Apply rate limiting to all endpoints except health check
+app.use('/health', (_req, res, next) => {
+  // Health check is rate-limited separately with higher limits
+  res.rateLimited = false;
+  next();
+});
+app.use(limiter);
+
+// Health check with more detailed status
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, app: 'Walkie Talking signaling server' });
+  const channelCount = channels.size;
+  const totalUsers = [...channels.values()].reduce((sum, ch) => sum + ch.users.size, 0);
+  res.json({
+    ok: true,
+    app: 'Walkie Talking signaling server',
+    status: 'healthy',
+    uptime: process.uptime(),
+    channels: channelCount,
+    users: totalUsers,
+    timestamp: Date.now(),
+  });
 });
 
 const httpServer = http.createServer(app);
+
+// Track socket connections per IP for rate limiting
+const socketConnectionsPerIp = new Map();
+
+function getIpAddress(socket) {
+  // Get IP from handshake data or socket
+  const handshake = socket?.handshake;
+  const forwarded = handshake?.headers?.['x-forwarded-for'];
+  if (forwarded) {
+    const [ip] = forwarded.split(',');
+    return ip.trim();
+  }
+  return handshake?.address || socket?.client?.conn?.remoteAddress || 'unknown';
+}
+
+function incrementSocketCount(ip) {
+  const current = socketConnectionsPerIp.get(ip) || 0;
+  socketConnectionsPerIp.set(ip, current + 1);
+}
+
+function decrementSocketCount(ip) {
+  const current = socketConnectionsPerIp.get(ip) || 0;
+  if (current <= 1) {
+    socketConnectionsPerIp.delete(ip);
+  } else {
+    socketConnectionsPerIp.set(ip, current - 1);
+  }
+}
+
+function getSocketCountForIp(ip) {
+  return socketConnectionsPerIp.get(ip) || 0;
+}
+
+// Track channel join attempts per socket for rate limiting
+const channelJoinAttempts = new Map();
+
+function checkChannelJoinRateLimit(socketId) {
+  const now = Date.now();
+  const windowMs = 60000; // 1 minute window
+  const maxAttempts = SOCKET_JOIN_RATE_LIMIT;
+  
+  let attempts = channelJoinAttempts.get(socketId) || [];
+  // Filter to only recent attempts within the window
+  attempts = attempts.filter(timestamp => now - timestamp < windowMs);
+  
+  if (attempts.length >= maxAttempts) {
+    channelJoinAttempts.set(socketId, attempts);
+    return false; // Rate limited
+  }
+  
+  attempts.push(now);
+  channelJoinAttempts.set(socketId, attempts);
+  return true; // Allowed
+}
+
+// Cleanup old join attempts periodically
+setInterval(() => {
+  const now = Date.now();
+  const windowMs = 60000;
+  for (const [socketId, attempts] of channelJoinAttempts.entries()) {
+    const recent = attempts.filter(timestamp => now - timestamp < windowMs);
+    if (recent.length === 0) {
+      channelJoinAttempts.delete(socketId);
+    } else {
+      channelJoinAttempts.set(socketId, recent);
+    }
+  }
+}, 30000); // Cleanup every 30 seconds
 const io = new Server(httpServer, {
   cors: {
     origin(origin, callback) {
@@ -156,9 +280,48 @@ function leaveCurrentChannel(socket) {
 }
 
 io.on('connection', (socket) => {
+  const ip = getIpAddress(socket);
+  incrementSocketCount(ip);
+  
+  // Check if IP has exceeded maximum socket connections
+  const socketCount = getSocketCountForIp(ip);
+  if (socketCount > RATE_LIMIT_MAX_SOCKET_CONNECTIONS_PER_IP) {
+    console.log(`[Rate Limit] Socket connection limit exceeded for IP ${ip}`, {
+      socketCount,
+      limit: RATE_LIMIT_MAX_SOCKET_CONNECTIONS_PER_IP,
+    });
+    socket.emit('server:error', {
+      error: 'Connection limit exceeded for your IP address.',
+      code: 'CONNECTION_LIMIT_EXCEEDED',
+    });
+    socket.disconnect(true);
+    decrementSocketCount(ip);
+    return;
+  }
+
+  console.log(`[Socket] Connected: ${socket.id} from ${ip} (sockets: ${socketCount})`);
+  
   socket.emit('server:ready', { socketId: socket.id });
 
+  // Error handler for socket events
+  socket.on('error', (err) => {
+    console.error(`[Socket Error] Error event on socket ${socket.id}`, {
+      error: err?.message,
+      stack: err?.stack,
+    });
+  });
+
   socket.on('channel:join', ({ username, channelNumber }, ack) => {
+    // Rate limit channel joins
+    if (!checkChannelJoinRateLimit(socket.id)) {
+      console.log(`[Rate Limit] Channel join rate limit exceeded for socket ${socket.id}`);
+      ack?.({ 
+        ok: false, 
+        error: 'Too many join attempts. Please wait a moment before trying again.' 
+      });
+      return;
+    }
+
     const safeUsername = String(username || 'Operator').trim().slice(0, 24) || 'Operator';
     const channelValidation = validateChannel(channelNumber);
 
@@ -419,8 +582,28 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    const ip = getIpAddress(socket);
+    decrementSocketCount(ip);
+    console.log(`[Socket] Disconnected: ${socket.id} from ${ip} (remaining: ${getSocketCountForIp(ip)})`);
     leaveCurrentChannel(socket);
   });
+});
+
+// Global error handler for uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('[Fatal] Uncaught Exception:', {
+    message: err?.message,
+    stack: err?.stack,
+  });
+  // Don't exit - log and continue for resilience
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Fatal] Unhandled Rejection:', {
+    reason: reason?.message || reason,
+    stack: reason?.stack,
+  });
+  // Don't exit - log and continue for resilience
 });
 
 httpServer.listen(PORT, () => {
