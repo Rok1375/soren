@@ -247,11 +247,11 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
   }
 
   return (
-    <main className="relative min-h-dvh overflow-hidden px-4 py-5 font-display text-white sm:flex sm:items-center sm:justify-center">
+    <main className="relative min-h-dvh overflow-x-hidden px-4 py-5 font-display text-white sm:flex sm:items-center sm:justify-center">
       <div className="noise-overlay absolute inset-0" />
       <div className="absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-tactical-green/10 blur-3xl" />
 
-      <section className="relative mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-md flex-col rounded-[2.2rem] border border-tactical-edge bg-gradient-to-b from-[#111b14] via-tactical-panel to-[#020302] p-3 shadow-2xl shadow-black sm:min-h-[820px] md:max-w-5xl md:p-4 panel-bezel">
+      <section className="relative mx-auto flex min-h-[min(100dvh,820px)] w-full max-w-md flex-col rounded-[2.2rem] border border-tactical-edge bg-gradient-to-b from-[#111b14] via-tactical-panel to-[#020302] p-3 shadow-2xl shadow-black sm:min-h-[820px] md:max-w-5xl md:p-4 panel-bezel">
         <div className="pointer-events-none absolute inset-x-10 top-3 h-px bg-white/20" />
         <div className="pointer-events-none absolute left-4 top-4 h-2 w-2 rounded-full border border-white/15 bg-white/10 shadow-[0_0_10px_rgba(255,255,255,.12)]" />
         <div className="pointer-events-none absolute right-4 top-4 h-2 w-2 rounded-full border border-white/15 bg-white/10 shadow-[0_0_10px_rgba(255,255,255,.12)]" />
@@ -737,6 +737,19 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
             </button>
           </div>
         </section>
+
+        {/* Safe exit button - always visible if joined but something goes wrong */}
+        {radio.joined && (
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={radio.leaveChannel}
+              className="touch-manipulation rounded-xl border border-white/10 bg-white/5 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white/60 transition active:scale-[0.98]"
+            >
+              Leave Room
+            </button>
+          </div>
+        )}
 
         {qrOpen ? (
           <section className="absolute inset-0 z-20 grid place-items-center rounded-[2.2rem] bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Channel QR invite">
