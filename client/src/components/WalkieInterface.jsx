@@ -105,6 +105,21 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
     if (inviteTimerRef.current) window.clearTimeout(inviteTimerRef.current);
   }, []);
 
+  const copyInviteLink = useCallback(async () => {
+    try {
+      const result = await shareInviteLink(radio.channelNumber);
+      setInviteStatus(result.method === 'cancelled' ? 'idle' : 'copied');
+    } catch {
+      setInviteStatus('error');
+    }
+
+    if (inviteTimerRef.current) window.clearTimeout(inviteTimerRef.current);
+    inviteTimerRef.current = window.setTimeout(() => {
+      setInviteStatus('idle');
+      inviteTimerRef.current = null;
+    }, 1800);
+  }, [radio.channelNumber]);
+
   useEffect(() => {
     if (!radio.joined) return;
 
@@ -169,21 +184,6 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [radio, radio.joined, radio.status, radio.muted, radio.startTransmitting, radio.stopTransmitting, onToggleFavorite, copyInviteLink]);
-
-  const copyInviteLink = useCallback(async () => {
-    try {
-      const result = await shareInviteLink(radio.channelNumber);
-      setInviteStatus(result.method === 'cancelled' ? 'idle' : 'copied');
-    } catch {
-      setInviteStatus('error');
-    }
-
-    if (inviteTimerRef.current) window.clearTimeout(inviteTimerRef.current);
-    inviteTimerRef.current = window.setTimeout(() => {
-      setInviteStatus('idle');
-      inviteTimerRef.current = null;
-    }, 1800);
-  }, [radio.channelNumber]);
 
   const copyBareInviteLink = useCallback(async () => {
     try {
