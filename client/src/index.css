@@ -128,6 +128,10 @@ input {
     0 0 24px rgba(var(--tactical-primary-rgb), 0.2);
 }
 
+.hardware-lines {
+  background-image: linear-gradient(180deg, rgba(255,255,255,.03), transparent 24%, transparent 76%, rgba(0,0,0,.1));
+}
+
 /* CRT flicker effect */
 @keyframes crt-flicker {
   0%, 100% {
@@ -146,7 +150,205 @@ input {
     opacity: 0.97;
   }
 }
-
 .crt-flicker {
   animation: crt-flicker 2s ease-in-out infinite;
+}
+
+/* Hardware panel bezel */
+.panel-bezel {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.65),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 20px 45px rgba(0, 0, 0, 0.35);
+}
+
+.panel-bezel::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 18%, rgba(0, 0, 0, 0.08));
+  pointer-events: none;
+}
+
+.panel-bezel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(124, 255, 107, 0.04), transparent 28%, transparent 72%, rgba(124, 255, 107, 0.03));
+  pointer-events: none;
+}
+
+/* Segmented LCD display styles */
+.lcd-digit {
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 700;
+  background: linear-gradient(180deg, #0a1408 0%, #060d05 100%);
+  border: 1px solid rgba(124, 255, 107, 0.15);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.5),
+    inset 0 -1px 2px rgba(124, 255, 107, 0.05),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.lcd-digit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 3px
+  );
+  pointer-events: none;
+}
+
+.lcd-segment-row {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+/* Animated status LED */
+.status-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  position: relative;
+}
+
+.status-led::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  opacity: 0.5;
+  filter: blur(3px);
+}
+
+.status-led.green {
+  background: #7cff6b;
+  box-shadow: 0 0 4px #7cff6b, 0 0 8px rgba(124, 255, 107, 0.4);
+}
+
+.status-led.green::after {
+  background: #7cff6b;
+}
+
+.status-led.amber {
+  background: #f59e0b;
+  box-shadow: 0 0 4px #f59e0b, 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+.status-led.amber::after {
+  background: #f59e0b;
+}
+
+.status-led.red {
+  background: #ef4444;
+  box-shadow: 0 0 4px #ef4444, 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+.status-led.red::after {
+  background: #ef4444;
+}
+
+.status-led.off {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.status-led.off::after {
+  display: none;
+}
+
+.status-led.blink {
+  animation: led-blink 1.5s ease-in-out infinite;
+}
+
+@keyframes led-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+/* Hardware groove lines */
+.hardware-groove {
+  background: linear-gradient(90deg, 
+    transparent 0%,
+    rgba(0, 0, 0, 0.3) 20%,
+    rgba(0, 0, 0, 0.4) 50%,
+    rgba(0, 0, 0, 0.3) 80%,
+    transparent 100%
+  );
+  height: 1px;
+}
+
+/* Side rail LED strip */
+.led-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 2px;
+}
+
+.led-rail .indicator {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.led-rail .indicator.active {
+  background: rgba(124, 255, 107, 0.5);
+  box-shadow: 0 0 3px rgba(124, 255, 107, 0.3);
+}
+
+.led-rail .indicator.warning {
+  background: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.3);
+}
+
+/* Desktop split layout */
+@media (min-width: 768px) {
+  .split-left {
+    grid-column: 1 / 2;
+  }
+  .split-right {
+    grid-column: 2 / 3;
+  }
+}
+
+/* Edge glow on active states */
+.edge-glow {
+  animation: edge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes edge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 255, 107, 0); }
+  50% { box-shadow: 0 0 8px 1px rgba(124, 255, 107, 0.15); }
+}
+
+/* LCD scanline overlay for digits */
+.lcd-scan {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 1px,
+    rgba(0, 0, 0, 0.08) 1px,
+    rgba(0, 0, 0, 0.08) 2px
+  );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Copy, Download, Lock, LogOut, Mic, MicOff, QrCode, RadioTower, Share2, Star, Unlock, Users, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toPng } from 'html-to-image';
@@ -12,13 +12,6 @@ const statusStyles = {
   TRANSMITTING: 'text-black border-tactical-green bg-tactical-green shadow-signal',
   RECEIVING: 'text-tactical-amber border-tactical-amber/40 bg-tactical-amber/10',
   'CHANNEL BUSY': 'text-tactical-red border-tactical-red/35 bg-tactical-red/10',
-};
-
-const peerStatusStyles = {
-  CONNECTING: 'border-tactical-amber/25 bg-tactical-amber/10 text-tactical-amber',
-  'AUDIO LINKED': 'border-tactical-green/25 bg-tactical-green/10 text-tactical-green',
-  RECONNECTING: 'border-tactical-amber/25 bg-tactical-amber/10 text-tactical-amber',
-  FAILED: 'border-tactical-red/30 bg-tactical-red/10 text-tactical-red',
 };
 
 function MeterCard({ label, children, tone = 'primary' }) {
@@ -125,15 +118,38 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
     let hasFired = false;
 
     function handleKeyDown(event) {
-      if (event.code !== 'Space') return;
-      if (isInputFocused()) return;
-      if (radio.status === 'CHANNEL BUSY') return;
-      if (radio.muted) return;
-      if (hasFired) return;
+      const isModKey = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
 
-      event.preventDefault();
-      hasFired = true;
-      radio.startTransmitting();
+      if (event.code === 'Space') {
+        if (isInputFocused()) return;
+        if (radio.status === 'CHANNEL BUSY') return;
+        if (radio.muted) return;
+        if (hasFired) return;
+
+        event.preventDefault();
+        hasFired = true;
+        radio.startTransmitting();
+        return;
+      }
+
+      if (!isModKey || !event.shiftKey || isInputFocused()) return;
+
+      if (key === 'c') {
+        event.preventDefault();
+        copyInviteLink();
+      } else if (key === 'q') {
+        event.preventDefault();
+        setQrOpen((open) => !open);
+        setCardOpen(false);
+      } else if (key === 'f') {
+        event.preventDefault();
+        onToggleFavorite();
+      } else if (key === 'escape') {
+        event.preventDefault();
+        setQrOpen(false);
+        setCardOpen(false);
+      }
     }
 
     function handleKeyUp(event) {
@@ -152,9 +168,9 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [radio, radio.joined, radio.status, radio.muted, radio.startTransmitting, radio.stopTransmitting]);
+  }, [radio, radio.joined, radio.status, radio.muted, radio.startTransmitting, radio.stopTransmitting, onToggleFavorite, copyInviteLink]);
 
-  async function copyInviteLink() {
+  const copyInviteLink = useCallback(async () => {
     try {
       const result = await shareInviteLink(radio.channelNumber);
       setInviteStatus(result.method === 'cancelled' ? 'idle' : 'copied');
@@ -167,9 +183,9 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
       setInviteStatus('idle');
       inviteTimerRef.current = null;
     }, 1800);
-  }
+  }, [radio.channelNumber]);
 
-  async function copyBareInviteLink() {
+  const copyBareInviteLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(inviteUrl);
       setInviteStatus('copied');
@@ -182,7 +198,7 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
       setInviteStatus('idle');
       inviteTimerRef.current = null;
     }, 1800);
-  }
+  }, [inviteUrl]);
 
   async function downloadSignalCard() {
     if (!cardRef.current) return;
@@ -235,21 +251,42 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
       <div className="noise-overlay absolute inset-0" />
       <div className="absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-tactical-green/10 blur-3xl" />
 
-      <section className="relative mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-md flex-col rounded-[2.2rem] border border-tactical-edge bg-gradient-to-b from-[#111b14] via-tactical-panel to-[#020302] p-4 shadow-2xl shadow-black sm:min-h-[820px]">
+      <section className="relative mx-auto flex min-h-[calc(100dvh-2.5rem)] w-full max-w-md flex-col rounded-[2.2rem] border border-tactical-edge bg-gradient-to-b from-[#111b14] via-tactical-panel to-[#020302] p-3 shadow-2xl shadow-black sm:min-h-[820px] md:max-w-5xl md:p-4 panel-bezel">
         <div className="pointer-events-none absolute inset-x-10 top-3 h-px bg-white/20" />
+        <div className="pointer-events-none absolute left-4 top-4 h-2 w-2 rounded-full border border-white/15 bg-white/10 shadow-[0_0_10px_rgba(255,255,255,.12)]" />
+        <div className="pointer-events-none absolute right-4 top-4 h-2 w-2 rounded-full border border-white/15 bg-white/10 shadow-[0_0_10px_rgba(255,255,255,.12)]" />
+        <div className="pointer-events-none absolute left-4 bottom-4 h-2 w-2 rounded-full border border-white/15 bg-white/10 shadow-[0_0_10px_rgba(255,255,255,.12)]" />
+        <div className="pointer-events-none absolute right-4 bottom-4 h-2 w-2 rounded-full border border-white/15 bg-white/10 shadow-[0_0_10px_rgba(255,255,255,.12)]" />
         <div className="pointer-events-none absolute inset-x-8 bottom-4 h-8 rounded-full border-b border-white/10" />
+        <div className="pointer-events-none absolute right-2 top-16 md:top-20 led-rail hidden sm:flex">
+          <span className={`indicator ${radio.joined ? 'active' : ''}`} />
+          <span className={`indicator ${radio.micStatus === 'granted' ? 'active' : radio.micStatus === 'requesting' ? 'warning' : ''}`} />
+          <span className={`indicator ${radio.onlineCount > 1 ? 'active' : ''}`} />
+          <span className={`indicator ${radio.isTransmitting ? 'active' : ''}`} />
+          <span className="indicator" />
+          <span className="indicator" />
+          <span className="indicator" />
+          <span className="indicator" />
+        </div>
 
-        <header className="mb-4 flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-black/35 px-4 py-3">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.32em] text-white/45">Walkie Talking</p>
-            <div className="mt-1 flex items-center gap-2 text-tactical-green">
-              <RadioTower size={18} />
-              <span className="font-mono text-sm uppercase tracking-[0.18em]">Digital Internet PTT</span>
-              {radio.isHost ? (
-                <span className="rounded-full border border-tactical-amber/30 bg-tactical-amber/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber">HOST</span>
-              ) : null}
+        <header className="mb-3 flex items-center justify-between rounded-[1.5rem] border border-white/10 bg-black/35 px-4 py-3 panel-bezel">
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-1.5">
+              <span className={`status-led ${radio.status === 'LISTENING' || radio.status === 'TRANSMITTING' ? 'green' : radio.status === 'CHANNEL BUSY' ? 'red' : radio.status === 'OFFLINE' ? 'off' : 'amber blink'}`} />
+              <span className={`status-led ${radio.micStatus === 'granted' ? 'green' : radio.micStatus === 'blocked' ? 'red' : 'amber blink'}`} />
+              <span className={`status-led ${radio.onlineCount > 1 ? 'green' : radio.joined ? 'amber' : 'off'}`} />
             </div>
-            <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.24em] text-white/35">INTERNET ROOM — NOT RF</p>
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.32em] text-white/45">Walkie Talking</p>
+              <div className="mt-1 flex items-center gap-2 text-tactical-green">
+                <RadioTower size={18} />
+                <span className="font-mono text-sm uppercase tracking-[0.18em]">Digital Internet PTT</span>
+                {radio.isHost ? (
+                  <span className="rounded-full border border-tactical-amber/30 bg-tactical-amber/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber">HOST</span>
+                ) : null}
+              </div>
+              <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.24em] text-white/35">INTERNET ROOM — NOT RF</p>
+            </div>
           </div>
           <div className={`rounded-full border px-3 py-1.5 font-mono text-xs uppercase tracking-[0.16em] ${statusClass}`}>{radio.status}</div>
         </header>
@@ -273,24 +310,30 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
           </div>
         )}
 
-        <section className="lcd-glass relative overflow-hidden rounded-[1.7rem] border border-tactical-green/25 bg-[#8dff6a]/10 p-4 shadow-signal">
+        <section className="lcd-glass relative overflow-hidden rounded-[1.7rem] border border-tactical-green/25 bg-[#8dff6a]/10 p-4 shadow-signal panel-bezel">
           <div className="absolute inset-0 animate-scan bg-gradient-to-b from-transparent via-white/8 to-transparent" />
           <div className="absolute inset-x-0 top-1/2 h-px bg-tactical-green/25" />
           <div className="relative mb-2 flex items-center justify-between gap-2">
-            <div className="inline-flex rounded-full border border-tactical-green/20 bg-black/25 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-tactical-green/70">
-              Internet room code — not RF
+            <div className="inline-flex items-center gap-2">
+              <span className={`status-led ${waveformActive ? 'green' : radio.status === 'OFFLINE' ? 'off' : 'amber'}`} />
+              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-tactical-green/70">Internet room code — not RF</span>
             </div>
           </div>
           <div className="relative flex items-end justify-between gap-3">
             <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-tactical-green/60">
+              <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-tactical-green/60 mb-2">
                 CHANNEL {channelLabels[radio.channelNumber] && <span className="text-white/40">— {channelLabels[radio.channelNumber]}</span>}
               </p>
-              <h2 className="font-mono text-6xl font-bold leading-none tracking-[0.06em] text-tactical-green drop-shadow-[0_0_16px_rgba(124,255,107,.45)] sm:text-7xl">
-                <span className="mr-2 text-2xl tracking-[0.18em] text-tactical-green/65">CH</span>{radio.channelNumber}
-              </h2>
+              <div className="lcd-segment-row lcd-scan">
+                {String(radio.channelNumber).split('').map((digit, i) => (
+                  <span key={i} className="lcd-digit h-16 w-12 text-4xl font-bold text-tactical-green drop-shadow-[0_0_8px_rgba(124,255,107,.6)]">
+                    {digit}
+                  </span>
+                ))}
+              </div>
               {roomVibes && roomVibes[radio.channelNumber] && (
-                <p className="mt-1 inline-flex rounded-full border border-tactical-amber/30 bg-tactical-amber/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber">
+                <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-tactical-amber/30 bg-tactical-amber/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber">
+                  <span className={`status-led ${waveformActive ? 'amber' : 'green'}`} />
                   {roomVibes[radio.channelNumber]}
                 </p>
               )}
@@ -302,13 +345,17 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
           </div>
         </section>
 
-        <section className="mt-3 grid grid-cols-3 gap-2">
+        <div className="hardware-groove mt-3 mb-2" />
+
+        <section className="grid grid-cols-3 gap-2 md:gap-3">
           <MeterCard label="STATUS" tone={getStatusTone(radio.status)}>{radio.status}</MeterCard>
           <MeterCard label="USERS"><Users className="mr-1 inline" size={14} />{radio.onlineCount}</MeterCard>
           <MeterCard label="MIC" tone={radio.micStatus === 'blocked' ? 'red' : radio.micStatus === 'requesting' ? 'amber' : 'green'}>{radio.micStatus}</MeterCard>
         </section>
 
-        <section className={`mt-3 rounded-2xl border p-3 ${radio.channelLocked ? 'border-tactical-amber/25 bg-tactical-amber/10' : 'border-tactical-green/20 bg-tactical-green/10'}`}>
+        <div className="hardware-groove mt-3 mb-2" />
+
+        <section className={`rounded-2xl border p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.05),inset_0_-1px_0_rgba(0,0,0,.45)] panel-bezel ${radio.channelLocked ? 'border-tactical-amber/25 bg-tactical-amber/10' : 'border-tactical-green/20 bg-tactical-green/10'}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/40">{radio.isHost ? 'HOST CONTROLS' : 'Channel Status'}</p>
@@ -369,32 +416,36 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
           ) : null}
         </section>
 
-        <section className="mt-4 space-y-3">
+        <div className="hardware-groove mt-3 mb-2" />
+
+        <section className="space-y-2">
           <PremiumWaveform 
             active={waveformActive} 
             busy={radio.status === 'CHANNEL BUSY'}
             isTransmitting={radio.isTransmitting}
             transmissionStartTime={transmissionStartTime}
           />
-          <div className="min-h-12 rounded-2xl border border-white/10 bg-black/30 p-3 text-center font-mono text-xs uppercase tracking-[0.18em] text-white/55">
+          <div className={`min-h-12 rounded-2xl border p-3 text-center font-mono text-xs uppercase tracking-[0.18em] transition-colors duration-300 ${isMeTransmitting ? 'border-tactical-green/40 bg-tactical-green/15 text-tactical-green/80 edge-glow' : radio.status === 'CHANNEL BUSY' ? 'border-tactical-red/30 bg-tactical-red/10 text-tactical-red/70' : 'border-white/10 bg-black/30 text-white/55'}`}>
             {radio.transmittingUser
               ? radio.status === 'CHANNEL BUSY'
                 ? `CHANNEL BUSY — ${radio.transmittingUser.username} is on-air`
                 : `${radio.transmittingUser.username} is on-air — receiving`
-              : 'CHANNEL CLEAR — hold to transmit'}
+              : isMeTransmitting ? `TRANSMITTING — hold to speak` : 'CHANNEL CLEAR — hold to transmit'}
           </div>
         </section>
 
-        <section className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div className="hardware-groove mt-3 mb-2" />
+
+        <section className="grid grid-cols-2 gap-3 text-sm md:gap-4 panel-bezel rounded-2xl border border-white/10 bg-black/30 p-3">
           {radio.users.map((user) => {
             const isMe = user.socketId === radio.socketId;
             const peerStatus = isMe ? `MIC ${radio.micStatus}` : radio.peerStatuses[user.socketId] || 'CONNECTING';
-            const peerClass = isMe ? 'border-tactical-green/20 bg-tactical-green/10 text-tactical-green' : peerStatusStyles[peerStatus] || peerStatusStyles.CONNECTING;
+            const ledColor = isMe ? (radio.micStatus === 'granted' ? 'green' : radio.micStatus === 'blocked' ? 'red' : 'amber blink') : peerStatus.includes('AUDIO LINKED') ? 'green' : peerStatus.includes('FAILED') ? 'red' : 'amber blink';
 
             return (
-              <div key={user.socketId} className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2">
+              <div key={user.socketId} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
                 <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${isMe ? 'bg-tactical-green shadow-signal' : 'bg-white/30'}`} />
+                  <span className={`status-led ${ledColor}`} />
                   <span className="truncate font-semibold">{user.username}</span>
                   {user.socketId === radio.hostSocketId ? (
                     <span className="rounded-full border border-tactical-amber/30 bg-tactical-amber/10 px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-tactical-amber">HOST</span>
@@ -413,7 +464,7 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
                     </button>
                   ) : null}
                 </div>
-                <div className={`mt-2 rounded-full border px-2 py-1 text-center font-mono text-[9px] uppercase tracking-[0.12em] ${peerClass}`}>
+                <div className={`mt-2 rounded-full border px-2 py-1 text-center font-mono text-[9px] uppercase tracking-[0.12em] ${isMe ? 'border-tactical-green/20 bg-tactical-green/10 text-tactical-green' : peerStatus.includes('AUDIO LINKED') ? 'border-tactical-green/25 bg-tactical-green/10 text-tactical-green' : peerStatus.includes('FAILED') ? 'border-tactical-red/30 bg-tactical-red/10 text-tactical-red' : 'border-tactical-amber/25 bg-tactical-amber/10 text-tactical-amber'}`}>
                   {peerStatus}
                 </div>
               </div>
@@ -421,12 +472,16 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
           })}
         </section>
 
-        <section className="mt-4 rounded-2xl border border-white/10 bg-black/30 overflow-hidden">
+        <div className="hardware-groove mt-3 mb-2" />
+
+        <section className="rounded-2xl border border-white/10 bg-black/30 overflow-hidden panel-bezel">
           <div className="bg-white/5 px-3 py-2 flex items-center justify-between border-b border-white/5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">Channel Activity</span>
-            <span className="h-1.5 w-1.5 rounded-full bg-tactical-green animate-pulse" />
+            <div className="flex items-center gap-2">
+              <span className={`status-led ${radio.events.length > 0 ? 'green blink' : 'off'}`} />
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">Channel Activity</span>
+            </div>
           </div>
-          <div className="max-h-40 overflow-y-auto p-2 space-y-1.5 font-mono text-[10px] tracking-tight">
+          <div className="max-h-32 overflow-y-auto p-2 space-y-1.5 font-mono text-[10px] tracking-tight">
             {radio.events.length > 0 ? (
               radio.events.map((event) => (
                 <div key={event.id} className="flex gap-2 leading-tight">
@@ -447,139 +502,166 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
           </div>
         </section>
 
-        <section className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
-          <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
-            <span>Room Tools</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={copyInviteLink}
-              className="touch-manipulation rounded-xl border border-white/10 bg-black/35 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-white/65 transition active:scale-[0.98]"
-            >
-              <Copy className="mr-1 inline" size={14} />
-              Copy Link
-            </button>
-            <button
-              type="button"
-              onClick={() => setQrOpen(true)}
-              className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber transition active:scale-[0.98]"
-            >
-              <QrCode className="mr-1 inline" size={14} />
-              Show QR
-            </button>
-            <button
-              type="button"
-              onClick={onToggleFavorite}
-              className={`touch-manipulation rounded-xl border px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition active:scale-[0.98] ${
-                isFavorite
-                  ? 'border-tactical-amber/30 bg-tactical-amber/10 text-tactical-amber'
-                  : 'border-white/10 bg-white/5 text-white/40'
-              }`}
-            >
-              <Star className={`mr-1 inline ${isFavorite ? 'fill-current' : ''}`} size={14} />
-              {isFavorite ? 'Saved' : 'Save'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setCardOpen(true)}
-              className="touch-manipulation rounded-xl border border-tactical-green/20 bg-tactical-green/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-green transition active:scale-[0.98]"
-            >
-              <Share2 className="mr-1 inline" size={14} />
-              Signal Card
-            </button>
-          </div>
-        </section>
+        <div className="hardware-groove mt-3 mb-2" />
 
-        <section className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
+        <section className="rounded-2xl border border-white/10 bg-black/30 p-3 panel-bezel">
           <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
-            <span>Local Label</span>
+            <div className="flex items-center gap-2">
+              <span className="status-led green" />
+              <span>Operator Console</span>
+            </div>
             <span className="text-white/25">Device Only</span>
           </div>
-          <p className="mb-2 text-[11px] leading-relaxed text-white/40">
-            Channel labels are saved only on this device.
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="e.g. Gaming Crew"
-              maxLength={24}
-              value={channelLabels[radio.channelNumber] || ''}
-              onChange={(e) => onSetChannelLabel(radio.channelNumber, e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/50 px-3 py-2 font-mono text-sm outline-none transition focus:border-tactical-green/40"
-            />
-          </div>
-        </section>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl border border-white/10 bg-black/35 p-3">
+              <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
+                <span>Room Tools</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={copyInviteLink}
+                  className="touch-manipulation rounded-xl border border-white/10 bg-black/35 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-white/65 transition active:scale-[0.98]"
+                >
+                  <Copy className="mr-1 inline" size={14} />
+                  Copy Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQrOpen(true)}
+                  className="touch-manipulation rounded-xl border border-tactical-amber/20 bg-tactical-amber/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-amber transition active:scale-[0.98]"
+                >
+                  <QrCode className="mr-1 inline" size={14} />
+                  Show QR
+                </button>
+                <button
+                  type="button"
+                  onClick={onToggleFavorite}
+                  className={`touch-manipulation rounded-xl border px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition active:scale-[0.98] ${
+                    isFavorite
+                      ? 'border-tactical-amber/30 bg-tactical-amber/10 text-tactical-amber'
+                      : 'border-white/10 bg-white/5 text-white/40'
+                  }`}
+                >
+                  <Star className={`mr-1 inline ${isFavorite ? 'fill-current' : ''}`} size={14} />
+                  {isFavorite ? 'Saved' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCardOpen(true)}
+                  className="touch-manipulation rounded-xl border border-tactical-green/20 bg-tactical-green/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-green transition active:scale-[0.98]"
+                >
+                  <Share2 className="mr-1 inline" size={14} />
+                  Signal Card
+                </button>
+              </div>
+            </div>
 
-        <section className="mt-3 rounded-2xl border border-tactical-amber/20 bg-black/30 p-3">
-          <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
-            <span>Room Vibe</span>
-            <span className="text-white/25">Local Only</span>
-          </div>
-          <p className="mb-3 text-[11px] leading-relaxed text-white/40">
-            Set a fun vibe for this channel — saved only on your device.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {['Gaming', 'Chilling', 'Event Crew', 'Secret Channel', 'Squad Chat', 'Emergency Mode'].map((vibe) => (
-              <button
-                key={vibe}
-                type="button"
-                onClick={() => onSetRoomVibe(radio.channelNumber, roomVibes?.[radio.channelNumber] === vibe ? '' : vibe)}
-                className={`touch-manipulation rounded-full border px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition active:scale-[0.98] ${
-                  roomVibes?.[radio.channelNumber] === vibe
-                    ? 'border-tactical-amber/30 bg-tactical-amber/10 text-tactical-amber shadow-[0_0_10px_rgba(245,158,11,.15)]'
-                    : 'border-white/10 bg-white/5 text-white/40 hover:border-white/20'
-                }`}
-              >
-                {vibe}
-              </button>
-            ))}
-          </div>
-        </section>
+            <div className="rounded-xl border border-white/10 bg-black/35 p-3">
+              <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
+                <span>Local Identity</span>
+                <span className="text-white/25">Device Only</span>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="mb-2 text-[10px] leading-relaxed text-white/40">Channel labels stay on this device.</p>
+                  <input
+                    type="text"
+                    placeholder="e.g. Gaming Crew"
+                    maxLength={24}
+                    value={channelLabels[radio.channelNumber] || ''}
+                    onChange={(e) => onSetChannelLabel(radio.channelNumber, e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-black/50 px-3 py-2 font-mono text-sm outline-none transition focus:border-tactical-green/40"
+                  />
+                </div>
+                <div>
+                  <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
+                    <span>Room Vibe</span>
+                    <span className="text-white/25">Local Only</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {['Gaming', 'Chilling', 'Event Crew', 'Secret Channel', 'Squad Chat', 'Emergency Mode'].map((vibe) => (
+                      <button
+                        key={vibe}
+                        type="button"
+                        onClick={() => onSetRoomVibe(radio.channelNumber, roomVibes?.[radio.channelNumber] === vibe ? '' : vibe)}
+                        className={`touch-manipulation rounded-full border px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition active:scale-[0.98] ${
+                          roomVibes?.[radio.channelNumber] === vibe
+                            ? 'border-tactical-amber/30 bg-tactical-amber/10 text-tactical-amber shadow-[0_0_10px_rgba(245,158,11,.15)]'
+                            : 'border-white/10 bg-white/5 text-white/40 hover:border-white/20'
+                        }`}
+                      >
+                        {vibe}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        <section className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
-          <div className="mb-3 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
-            <span>Local Stats</span>
-            <span className="text-white/25">Device Only</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-center">
-            <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-              <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Channels Joined</p>
-              <p className="font-mono text-xl font-bold text-tactical-green">{stats.channelsJoined || 0}</p>
+            <div className="rounded-xl border border-white/10 bg-black/35 p-3">
+              <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
+                <span>Keyboard Shortcuts</span>
+                <span className="text-white/25">Power User</span>
+              </div>
+              <div className="flex flex-wrap gap-2 text-[9px] font-mono uppercase tracking-[0.14em] text-white/55">
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">Space PTT</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">⌘/Ctrl+⇧+C Copy</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">⌘/Ctrl+⇧+Q QR</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">⌘/Ctrl+⇧+F Save</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">Esc Close</span>
+              </div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-              <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Transmissions Today</p>
-              <p className="font-mono text-xl font-bold text-tactical-green">{stats.transmissionsToday || 0}</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-              <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Favorite Channel</p>
-              <p className="font-mono text-lg font-bold text-tactical-amber">CH {stats.favoriteChannel || '—'}</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-              <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Last Signal</p>
-              <p className="font-mono text-xs font-bold text-white/60">
-                {formatTimeAgo(stats.lastSignal)}
+
+            <div className="rounded-xl border border-white/10 bg-black/35 p-3 panel-bezel">
+              <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
+                <span>Local Stats</span>
+                <span className="text-white/25">Device Only</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+                  <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Joined</p>
+                  <span className="lcd-digit inline-block mt-1 h-8 w-10 text-lg font-bold text-tactical-green">{String(stats.channelsJoined || 0).padStart(1, '0')}</span>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+                  <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">TX Today</p>
+                  <span className="lcd-digit inline-block mt-1 h-8 w-10 text-lg font-bold text-tactical-green">{String(stats.transmissionsToday || 0).padStart(1, '0')}</span>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+                  <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Favorite</p>
+                  <p className="font-mono text-[15px] font-bold text-tactical-amber">CH {stats.favoriteChannel || '—'}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+                  <p className="text-[8px] uppercase tracking-[0.18em] text-white/40">Last Signal</p>
+                  <p className="font-mono text-[10px] font-bold text-white/60">
+                    {formatTimeAgo(stats.lastSignal)}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-white/40">
+                Stats are saved locally on this device.
               </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Reset all local stats? This cannot be undone.')) {
+                    setStats(resetLocalStats());
+                  }
+                }}
+                className="mt-2 touch-manipulation rounded-lg border border-tactical-red/20 bg-tactical-red/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-red transition active:scale-95"
+              >
+                Reset Stats
+              </button>
             </div>
           </div>
-          <p className="mt-3 text-[10px] leading-relaxed text-white/40">
-            Stats are saved locally on this device.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm('Reset all local stats? This cannot be undone.')) {
-                setStats(resetLocalStats());
-              }
-            }}
-            className="mt-2 touch-manipulation rounded-lg border border-tactical-red/20 bg-tactical-red/10 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-tactical-red transition active:scale-95"
-          >
-            Reset Stats
-          </button>
         </section>
 
         {isOnlyOperator ? (
-          <section className="mt-3 rounded-2xl border border-tactical-green/20 bg-tactical-green/10 p-3 text-center">
+          <section className="mt-3 rounded-2xl border border-tactical-green/20 bg-tactical-green/10 p-3 text-center panel-bezel">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="status-led green" />
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-tactical-green/60">Awaiting Second Operator</span>
+            </div>
             <p className="font-mono text-xs uppercase leading-relaxed tracking-[0.14em] text-tactical-green/75">
               You&apos;re live on CH {radio.channelNumber}. Send the signal — first friend to join can talk instantly.
             </p>
@@ -606,14 +688,19 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
 
         <div className="flex-1" />
 
+        <div className="hardware-groove mb-3" />
+
         {radio.error ? <p className="mb-3 rounded-xl border border-tactical-red/30 bg-tactical-red/10 p-3 text-center text-sm text-tactical-red">{radio.error}</p> : null}
 
         <section className="pb-[env(safe-area-inset-bottom)]">
+          <div className="text-center mb-3">
+            <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-white/30">Transmission Control</p>
+          </div>
           <button
             type="button"
             aria-label="Hold to talk"
             aria-disabled={radio.status === 'CHANNEL BUSY'}
-            className={`ptt-button touch-none relative mx-auto grid h-56 w-56 select-none place-items-center rounded-full border transition active:scale-95 sm:h-60 sm:w-60 ${radio.isTransmitting ? 'border-tactical-green bg-tactical-green text-black shadow-signal' : 'border-white/15 bg-gradient-to-br from-[#2d342e] via-[#121913] to-black text-white shadow-[inset_0_10px_25px_rgba(255,255,255,.08),inset_0_-28px_38px_rgba(0,0,0,.65),0_24px_70px_rgba(0,0,0,.6)]'}`}
+            className={`ptt-button touch-none relative mx-auto grid h-56 w-56 select-none place-items-center rounded-full border transition active:scale-95 sm:h-60 sm:w-60 ${radio.isTransmitting ? 'border-tactical-green bg-tactical-green text-black shadow-signal edge-glow' : 'border-white/15 bg-gradient-to-br from-[#2d342e] via-[#121913] to-black text-white shadow-[inset_0_10px_25px_rgba(255,255,255,.08),inset_0_-28px_38px_rgba(0,0,0,.65),0_24px_70px_rgba(0,0,0,.6)]'} panel-bezel`}
             {...bindPttHandlers()}
           >
             <span className={`absolute inset-4 rounded-full border ${radio.isTransmitting ? 'border-black/20' : 'border-white/10'}`} />
@@ -641,11 +728,11 @@ export function WalkieInterface({ radio, isFavorite, onToggleFavorite, channelLa
                   radio.toggleMute();
                 }
               }}
-              className="touch-manipulation rounded-2xl border border-white/10 bg-black/45 px-4 py-4 font-bold uppercase tracking-[0.16em] text-white/80 transition active:scale-[0.98]"
+              className="touch-manipulation rounded-2xl border border-white/10 bg-black/45 px-4 py-4 font-bold uppercase tracking-[0.16em] text-white/80 transition active:scale-[0.98] panel-bezel"
             >
               {radio.muted ? 'Unmute' : 'Mute'}
             </button>
-            <button type="button" onClick={radio.leaveChannel} className="touch-manipulation rounded-2xl border border-tactical-red/30 bg-tactical-red/10 px-4 py-4 font-bold uppercase tracking-[0.16em] text-tactical-red transition active:scale-[0.98]">
+            <button type="button" onClick={radio.leaveChannel} className="touch-manipulation rounded-2xl border border-tactical-red/30 bg-tactical-red/10 px-4 py-4 font-bold uppercase tracking-[0.16em] text-tactical-red transition active:scale-[0.98] panel-bezel">
               <LogOut className="mr-2 inline" size={17} /> Leave
             </button>
           </div>

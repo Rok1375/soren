@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, useCallback } from 'react';
 import { EntryScreen } from './components/EntryScreen';
 import { WalkieInterface } from './components/WalkieInterface';
 import { useWalkieTalkie } from './hooks/useWalkieTalkie';
@@ -116,6 +116,10 @@ export default function App() {
     toggleFavoriteChannel(channel);
   }
 
+  const handleToggleCurrentFavorite = useCallback(() => {
+    toggleFavoriteChannel(radio.channelNumber);
+  }, [radio.channelNumber]);
+
   function handleSetChannelLabel(channel, label) {
     const nextLabels = saveChannelLabel(channel, label);
     setChannelLabels(nextLabels);
@@ -148,10 +152,10 @@ export default function App() {
   }
 
   return (
-    <WalkieInterface 
+      <WalkieInterface 
       radio={radio} 
       isFavorite={isChannelFavorite(radio.channelNumber)}
-      onToggleFavorite={() => handleToggleFavorite(radio.channelNumber)}
+      onToggleFavorite={handleToggleCurrentFavorite}
       channelLabels={channelLabels}
       onSetChannelLabel={handleSetChannelLabel}
       roomVibes={roomVibes}
